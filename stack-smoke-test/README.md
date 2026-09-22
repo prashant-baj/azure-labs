@@ -65,12 +65,31 @@ including `app_url` and `stack_ok`.
 
 ### 3. Confirm
 
+**a. The app responds:**
+
 ```bash
 curl -I $(terraform output -raw app_url)     # expect HTTP/... 200
 ```
 
-A 200 plus a clean apply = **the whole stack is viable**. If any single resource fails,
-that's the one to redesign around (note which, and the error).
+**b. The resource group has every service.** In the Azure portal, open the
+`swat-stack-smoke-rg` resource group — it should contain all eight resources below (plus an
+auto-created *Application Insights Smart Detection* action group):
+
+![Expected resources after a successful apply](./images/expected-resources.png)
+
+| Resource (yours will have a different suffix) | Type |
+|-----------------------------------------------|------|
+| `swat-hello-…` | Container App |
+| `swat-cae-…` | Container Apps Environment |
+| `swatacr…` | Container registry |
+| `swat-cosmos-…` | Azure Cosmos DB account |
+| `swat-sb-…` | Service Bus Namespace |
+| `swat-kv-…` | Key vault |
+| `swat-law-…` | Log Analytics workspace |
+| `swat-appi-…` | Application Insights |
+
+A 200 **and** all eight resources present = **the whole stack is viable**. If any single
+resource is missing or failed, that's the one to redesign around (note which, and the error).
 
 ### 4. Destroy (do this promptly)
 
