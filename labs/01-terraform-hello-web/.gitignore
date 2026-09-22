@@ -1,0 +1,14 @@
+# Terraform working files - never commit these
+.terraform/
+.terraform.tfstate.lock.info
+
+# State can contain secrets - keep it local for this lab
+*.tfstate
+*.tfstate.*
+
+# Your own variable values
+terraform.tfvars
+
+# Crash logs
+crash.log
+crash.*.log
