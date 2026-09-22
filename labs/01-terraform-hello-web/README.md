@@ -1,29 +1,33 @@
 # Lab 01 · Hello-World Web App with Terraform
 
-Deploy a running web app to Azure using **Terraform** — no portal clicking. You'll write
-nothing from scratch here; you'll run the Terraform workflow (`init → plan → apply →
-destroy`) against a small, ready-made configuration and see a live URL at the end.
+Deploy a live web page to Azure using **Terraform** — no portal clicking. You'll run the
+Terraform workflow (`init → plan → apply → destroy`) against a small configuration and get
+a public URL at the end. Terraform even uploads the page content itself.
 
-**Time:** ~15–20 minutes · **Cost:** a Basic (B1) App Service plan, torn down at the end
-(and by the lab's 4-hour auto-cleanup).
+**Time:** ~15 minutes · **Cost:** a few cents of storage, torn down at the end.
+
+> **Why a static website (and not an App Service or VM)?** The lab subscription has **zero
+> dedicated-compute quota** — Basic App Service plans and B-series VMs both come back with
+> `quota 0`. Azure Storage static hosting needs no compute quota, so it deploys reliably for
+> everyone. See [`../../lab-constraints.md`](../../lab-constraints.md).
 
 ## What you'll build
 
 ```
 Resource Group
-  └── App Service Plan (Linux, B1)
-        └── Linux Web App  ──runs──▶  hello-world container (mcr.microsoft.com/azuredocs/aci-helloworld)
+  └── Storage Account
+        ├── Static website feature (creates the "$web" container, served over HTTPS)
+        └── index.html  ◀── uploaded by Terraform
 ```
 
-Everything lives in **eastus** and uses only resource types the lab policy allows — no VMs,
-so none of the VM size/capacity limits apply.
+Everything lives in **eastus** and uses only resource types the lab policy allows.
 
 ## Learning goals
 
 - The core Terraform loop: `init`, `plan`, `apply`, `destroy`.
-- How Terraform providers, resources, variables and outputs fit together.
+- How providers, resources, variables and outputs fit together.
+- Using Terraform to deploy **content** (an HTML file), not just infrastructure.
 - How Terraform authenticates to Azure through your `az` CLI session.
-- Reading a `plan` before you apply, and cleaning up with `destroy`.
 
 ## Prerequisites
 
@@ -35,26 +39,26 @@ so none of the VM size/capacity limits apply.
 
 | File | Purpose |
 |------|---------|
-| `main.tf` | Provider + the resources (resource group, plan, web app). |
-| `variables.tf` | Inputs (`prefix`, `location`, `plan_sku`) with defaults and validation. |
-| `outputs.tf` | Prints the app URL after apply. |
+| `main.tf` | Provider + resources (resource group, storage account, static-website, the HTML blob). |
+| `variables.tf` | Inputs (`prefix`, `location`) with defaults and validation. |
+| `outputs.tf` | Prints the website URL after apply. |
 | `terraform.tfvars.example` | Optional: copy to `terraform.tfvars` to override defaults. |
 | `.terraform.lock.hcl` | Pins provider versions so everyone gets the same ones. |
 
 ## Steps
 
-### 0. Register the App Service resource provider (once per lab session)
+### 0. Register the Storage resource provider (once per lab session)
 
-A freshly-provisioned lab subscription hasn't registered the `Microsoft.Web` resource
-provider yet, so the very first deployment would fail with `MissingSubscriptionRegistration`.
+A freshly-provisioned lab subscription hasn't registered the `Microsoft.Storage` resource
+provider yet, so the first deployment would fail with `MissingSubscriptionRegistration`.
 Register it once (your Contributor role allows this):
 
 ```bash
-az provider register --namespace Microsoft.Web --wait
+az provider register --namespace Microsoft.Storage --wait
 ```
 
 `--wait` blocks (~1 minute) until it reports `Registered`. You only do this once per lab
-session -- but because the environment is recycled every ~4 hours into a **new** subscription,
+session — but because the environment is recycled every ~4 hours into a **new** subscription,
 you'll register again at the start of the next session.
 
 ### 1. Sign in and point Terraform at your subscription
@@ -75,8 +79,6 @@ export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
 ### 2. Initialize
 
-From this folder:
-
 ```bash
 terraform init
 ```
@@ -89,8 +91,8 @@ Terraform downloads the AzureRM and random providers (recorded in `.terraform.lo
 terraform plan
 ```
 
-Read the output: it should show **3 to add** (resource group, plan, web app) and **0 to
-change / 0 to destroy**. Nothing is created yet — `plan` only previews.
+It should show **4 to add** (resource group, storage account, static-website setting, the
+HTML blob) and **0 to change / 0 to destroy**. `plan` only previews — nothing is created yet.
 
 ### 4. Apply
 
@@ -98,19 +100,18 @@ change / 0 to destroy**. Nothing is created yet — `plan` only previews.
 terraform apply
 ```
 
-Type `yes` when prompted. After ~1–2 minutes you'll see outputs, including:
+Type `yes`. After ~30–60 seconds you'll see outputs, including:
 
 ```
-app_url = "https://swat-hello-xxxxxx.azurewebsites.net"
+website_url = "https://swatwebxxxxxx.z13.web.core.windows.net/"
 ```
 
 ### 5. Verify
 
-Open `app_url` in a browser. The first request may take 20–60 seconds while the container
-pulls and starts, then you'll see the hello-world page. You can also check from the CLI:
+Open `website_url` in a browser — you'll see the hello-world page. Or from the CLI:
 
 ```bash
-curl -I $(terraform output -raw app_url)     # expect HTTP/... 200
+curl -I $(terraform output -raw website_url)     # expect HTTP/... 200
 ```
 
 ### 6. Clean up
@@ -119,22 +120,23 @@ curl -I $(terraform output -raw app_url)     # expect HTTP/... 200
 terraform destroy
 ```
 
-Type `yes`. This removes everything the lab created. (Even if you skip it, the 4-hour
-vlabs cleanup will remove it — but always destroy your own resources when you're done.)
+Type `yes`. (Even if you skip it, the 4-hour vlabs cleanup removes everything — but always
+destroy your own resources when you're done.)
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
+| `MissingSubscriptionRegistration ... 'Microsoft.Storage'` | You skipped Step 0. Run `az provider register --namespace Microsoft.Storage --wait`, then `terraform apply` again. |
 | `Error: building account: could not... subscription ID` | You didn't set `ARM_SUBSCRIPTION_ID` (Step 1), or you're not logged in — re-run `az login`. |
 | `SubscriptionNotFound` / auth errors | The lab environment was recycled. Restart it in vlabs, re-run `az login`, re-set `ARM_SUBSCRIPTION_ID`. |
 | `RequestDisallowedByPolicy` | You changed `location` to a disallowed region. Use `eastus`, `eastus2`, or `canadacentral`. |
-| Web page shows "Application Error" briefly | The container is still starting — wait ~1 minute and refresh. |
-| `Name ... already taken` | Re-run `terraform apply` — the random suffix regenerates a unique name. |
+| Storage account name error | The name must be globally unique; re-run `terraform apply` and the random suffix regenerates. |
+| Page shows the 404 doc | The blob may still be uploading — wait a few seconds and refresh. |
 
 ## Try next (optional)
 
-- Change `plan_sku` to `B2` in `terraform.tfvars`, run `terraform plan`, and see Terraform
-  show an **in-place update** instead of a rebuild.
-- Add a second app setting in `main.tf` and watch `plan` detect just that one change.
-- Point `docker_image_name` at a different public image and re-apply.
+- Edit the HTML in `main.tf` (the `source_content`) and re-`apply` — Terraform detects just
+  the blob change and re-uploads it.
+- Add a second page (another `azurerm_storage_blob`, e.g. `about.html`) and browse to it.
+- Point `error_404_document` at a custom `404.html` you also upload.

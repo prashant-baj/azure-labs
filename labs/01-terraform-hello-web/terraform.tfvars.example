@@ -1,6 +1,5 @@
 # Copy this file to terraform.tfvars and adjust if you like.
-# All values have sensible defaults, so terraform.tfvars is optional.
+# Both values have sensible defaults, so terraform.tfvars is optional.
 
 prefix   = "swat"
 location = "eastus"     # allowed: eastus, eastus2, canadacentral
-plan_sku = "B1"
