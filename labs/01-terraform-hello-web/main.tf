@@ -64,11 +64,12 @@ resource "azurerm_storage_account_static_website" "web" {
 
 # The hello-world page itself, uploaded by Terraform into the "$web" container.
 resource "azurerm_storage_blob" "index" {
-  name                 = "index.html"
-  storage_container_id = "${azurerm_storage_account.web.primary_blob_endpoint}$web"
-  type                 = "Block"
-  content_type         = "text/html"
-  depends_on           = [azurerm_storage_account_static_website.web]
+  name                   = "index.html"
+  storage_account_name   = azurerm_storage_account.web.name
+  storage_container_name = "$web" # the container the static-website feature creates
+  type                   = "Block"
+  content_type           = "text/html"
+  depends_on             = [azurerm_storage_account_static_website.web]
 
   source_content = <<-HTML
     <!doctype html>
