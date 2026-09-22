@@ -33,7 +33,7 @@ param(
   [string]$LoginId        = $(if ($env:LAB_LOGIN_ID)        { $env:LAB_LOGIN_ID }        else { 'prashant_1789717358725@nuveproeaazure.onmicrosoft.com' }),
   [string]$TenantId       = $(if ($env:LAB_TENANT_ID)       { $env:LAB_TENANT_ID }       else { 'edcb69da-563d-4aa0-a13e-94be9a1d722d' }),
   [string]$SubscriptionId = $(if ($env:LAB_SUBSCRIPTION_ID) { $env:LAB_SUBSCRIPTION_ID } else { 'b4ff8670-4b0c-484f-8565-74df13f030a6' }),
-  [string]$Region         = $(if ($env:LAB_REGION)          { $env:LAB_REGION }          else { 'centralindia' }),
+  [string]$Region         = $(if ($env:LAB_REGION)          { $env:LAB_REGION }          else { 'eastus' }),   # policy allows: eastus, eastus2, canadacentral
   [switch]$SkipWriteTest
 )
 

@@ -120,7 +120,7 @@ chmod +x az-access-check.sh    # first time only
   [PASS] Can list resource groups (currently 0).   # 0 is fine on a fresh lab
 
 ==> 7. Write access (create + delete a resource group)
-  [PASS] Created resource group swat-readiness-... in centralindia.
+  [PASS] Created resource group swat-readiness-... in eastus.
   [PASS] Delete of swat-readiness-... requested (running in background).
 
  Result:  8 passed   0 warnings   0 failed
@@ -161,7 +161,7 @@ LAB_LOGIN_ID='me_...@...onmicrosoft.com' LAB_SUBSCRIPTION_ID='<guid>' ./az-acces
 | Login fails after a reset | The environment was recycled. Click **Start** in vlabs, wait for *Start – Complete*, then re-run. |
 | Password rejected | You may be using `temporaryAccessPassword`/`password` — use **`loginpassword`**. If it says the password is expired, sign in once at <https://portal.azure.com> to set a new one. |
 | Subscription/tenant "differs from expected" | Your lab's `eaSubscriptionGuid` / `eaTenantId` differ from the script defaults — pass your own with the overrides above. |
-| Write test fails to create a resource group | The region may be policy-restricted. Try another region, e.g. `-Region eastus` (PowerShell) or `LAB_REGION=eastus` (bash). |
+| Write test fails to create a resource group | The region may be policy-restricted. This subscription allows only **`eastus`, `eastus2`, `canadacentral`** — see [`../lab-constraints.md`](../lab-constraints.md). |
 
 ---
 

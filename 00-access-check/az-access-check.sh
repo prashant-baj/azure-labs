@@ -32,7 +32,7 @@ set -uo pipefail
 LAB_LOGIN_ID="${LAB_LOGIN_ID:-prashant_1789717358725@nuveproeaazure.onmicrosoft.com}"
 LAB_TENANT_ID="${LAB_TENANT_ID:-edcb69da-563d-4aa0-a13e-94be9a1d722d}"
 LAB_SUBSCRIPTION_ID="${LAB_SUBSCRIPTION_ID:-b4ff8670-4b0c-484f-8565-74df13f030a6}"
-LAB_REGION="${LAB_REGION:-centralindia}"
+LAB_REGION="${LAB_REGION:-eastus}"   # policy allows: eastus, eastus2, canadacentral
 DO_WRITE_TEST="${DO_WRITE_TEST:-true}"       # set to false to skip RG create/delete
 
 # ---- pretty output ----------------------------------------------------------
