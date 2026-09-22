@@ -26,7 +26,7 @@ The Container App runs a **public hello image** so this test needs no image buil
 ## Prerequisites
 
 - `az login` done and the lab subscription active (run `00-access-check` first).
-- Terraform installed (`prereqs-check`).
+- Terraform installed (`01-prereqs-check`).
 
 ## Steps
 

@@ -1,20 +1,25 @@
 # Prerequisites · Local Toolchain Check
 
-Run this **first**, before the Azure access check. It confirms the tools the Azure labs
-need are installed on your machine and are a recent enough version. It only inspects your
-local setup — it makes no network or Azure calls.
+Confirms the tools the Azure labs need are installed on your machine and are a recent
+enough version. It only inspects your local setup — it makes no network or Azure calls.
 
-## Order of setup
+## Where this fits
 
-1. **`prereqs-check`** (this folder) — local tools installed? ← start here
-2. **`00-access-check`** — can you reach the Azure lab account?
+The environment checks, in order:
+
+1. **`00-access-check`** — can you reach the Azure lab account?
+2. **`01-prereqs-check`** (this folder) — are the local tools installed?
+3. **`02-azure-resources-test`** — does the full serverless stack deploy?
+
+Tip: the Azure CLI checked here is also what `00-access-check` needs, so on a fresh machine
+install the tools from the list below first.
 
 ## How to run
 
 ### Windows (PowerShell)
 
 ```powershell
-cd "path\to\azure-labs\prereqs-check"
+cd "path\to\azure-labs\01-prereqs-check"
 ./check-prereqs.ps1
 ```
 
@@ -23,7 +28,7 @@ If scripts are blocked: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Byp
 ### macOS / Linux / WSL (bash)
 
 ```bash
-cd path/to/azure-labs/prereqs-check
+cd path/to/azure-labs/01-prereqs-check
 chmod +x check-prereqs.sh    # first time only
 ./check-prereqs.sh
 ```
