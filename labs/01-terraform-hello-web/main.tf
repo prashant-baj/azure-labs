@@ -20,8 +20,10 @@ terraform {
 }
 
 provider "azurerm" {
-  # Providers are pre-registered on the lab subscription; don't try to register
-  # them (the lab role may not allow it).
+  # Don't let Terraform bulk-register every resource provider (slow, and it may
+  # exceed lab permissions). Instead register the one we need once, up front:
+  #   az provider register --namespace Microsoft.Web --wait
+  # (see README Step 0).
   resource_provider_registrations = "none"
 
   # Auth comes from your `az login` session. The subscription id is read from

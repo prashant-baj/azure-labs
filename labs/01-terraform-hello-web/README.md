@@ -43,6 +43,20 @@ so none of the VM size/capacity limits apply.
 
 ## Steps
 
+### 0. Register the App Service resource provider (once per lab session)
+
+A freshly-provisioned lab subscription hasn't registered the `Microsoft.Web` resource
+provider yet, so the very first deployment would fail with `MissingSubscriptionRegistration`.
+Register it once (your Contributor role allows this):
+
+```bash
+az provider register --namespace Microsoft.Web --wait
+```
+
+`--wait` blocks (~1 minute) until it reports `Registered`. You only do this once per lab
+session -- but because the environment is recycled every ~4 hours into a **new** subscription,
+you'll register again at the start of the next session.
+
 ### 1. Sign in and point Terraform at your subscription
 
 Terraform reuses your `az login` session for auth, but the AzureRM provider needs to know
