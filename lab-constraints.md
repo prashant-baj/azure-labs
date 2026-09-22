@@ -111,3 +111,23 @@ HDInsight, Batch, Spring Apps, SignalR, Stream Analytics.
   `The content for this response was already consumed` when a deployment is policy-denied.
   That trailing traceback is a cosmetic az CLI bug — the real reason is the
   `RequestDisallowedByPolicy` block above it.
+
+## 6. Permissions the lab role (Contributor) does NOT have
+
+Participants are **Contributor** on the subscription. Contributor manages resources but
+**cannot touch access control**:
+
+- `Microsoft.Authorization/roleAssignments/write` — denied (cannot assign roles).
+- `Microsoft.Authorization/roleDefinitions/read` — denied (confirmed: `AuthorizationFailed`).
+
+Consequences:
+
+- **Managed identities can't be granted `AcrPull`** -> Container Apps pull images from ACR
+  using **ACR admin credentials** (`admin_enabled = true`) instead.
+- **GitHub Actions -> Azure CI/CD** needs a service principal with a role assignment.
+  Participants can create the app registration + federated credential, but **cannot assign it
+  a role**, so vlabs (subscription Owner) must run one command per app:
+  `az role assignment create --assignee <appId> --role Contributor --scope /subscriptions/<sub>`.
+  With OIDC there is no client secret to share. See `ci-cd/` for the full setup.
+
+To change any of this, ask vlabs (they own the subscription).
