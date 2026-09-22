@@ -28,10 +28,10 @@ function Hdr  ($m){ Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
 function VerNum($t){ if($t -and ("$t" -match '(\d+)\.(\d+)(\.\d+)?')){ return $Matches[0] } return $null }
 function Has($bin){ return [bool](Get-Command $bin -ErrorAction SilentlyContinue) }
 function CheckVer($name,$v,$min){
-  if(-not $v){ Ok "$name: installed (version unknown)"; return }
+  if(-not $v){ Ok "${name}: installed (version unknown)"; return }
   $isOk = $true
   if($min){ try { $isOk = ([version]$v -ge [version]$min) } catch { $isOk = $true } }
-  if($isOk){ Ok "$name: $v" } else { Warn "$name: $v installed - $min+ recommended" }
+  if($isOk){ Ok "${name}: $v" } else { Warn "${name}: $v installed - $min+ recommended" }
 }
 
 Write-Host "============================================================"
