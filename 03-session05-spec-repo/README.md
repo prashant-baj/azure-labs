@@ -139,6 +139,7 @@ history comes with you, and nothing is lost.
 | Repository structure and required files | The later sessions assume these paths |
 | Template placeholders removed | An unfilled template is not a definition |
 | Objectives present, and not more than five | More than five and you have written a feature list |
+| Components listed, and each says what it needs | The source column is where the next session starts |
 | Something in the **Not now** column | An empty middle column means the scope conversation has not happened |
 | Acceptance criteria in EARS form (`shall`) | A criterion that cannot fail is a sentiment |
 | Assumptions and open questions not empty | The section everybody deletes is the most useful one |

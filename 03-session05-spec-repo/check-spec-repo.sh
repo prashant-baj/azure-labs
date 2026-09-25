@@ -81,6 +81,16 @@ OUTOWNER=$(echo "$SCOPE" | awk -F'|' 'NF>=4 {gsub(/^[ \t]+|[ \t]+$/,"",$3); if (
 if [ "${OUTOWNER:-0}" -ge 1 ]; then ok "Out-of-scope items listed"
 else warn "Nothing marked out of scope - is everything really yours?"; fi
 
+# Components
+COMPROWS=$(awk '/^## 4\. Components/{f=1;next} /^## /{f=0} f' "$SPEC" | grep -E '^\|' | grep -viE '^\|[[:space:]]*(Component[[:space:]]*\||-+)')
+NCOMP=$(echo "$COMPROWS" | awk -F'|' 'NF>=4 {gsub(/^[ \t]+|[ \t]+$/,"",$2); if ($2 != "") print}' | wc -l | tr -d ' ')
+NEEDS=$(echo "$COMPROWS" | awk -F'|' 'NF>=5 {gsub(/^[ \t]+|[ \t]+$/,"",$2); gsub(/^[ \t]+|[ \t]+$/,"",$4); if ($2 != "" && $4 != "") print}' | wc -l | tr -d ' ')
+if [ "${NCOMP:-0}" -ge 1 ]; then ok "$NCOMP component(s) listed"; else bad "No components listed in section 4"; fi
+if [ "${NCOMP:-0}" -ge 1 ]; then
+  if [ "${NEEDS:-0}" -ge 1 ]; then ok "$NEEDS component(s) say what they need and where it comes from"
+  else warn "No component says what it needs or where it comes from - that column is where the next session starts"; fi
+fi
+
 # Stories
 STORIES=$(grep -E '^[-*][[:space:]]+As an? ' "$SPEC" | grep -vcE '<role>|<what>|<why' || true)
 if [ "${STORIES:-0}" -ge 1 ]; then ok "$STORIES story/stories written"; else bad "No stories found"; fi

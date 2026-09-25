@@ -96,6 +96,21 @@ else { Write-Warn "`"Not now`" column is empty - the scope conversation has prob
 if ($outOwner -ge 1) { Write-Ok "Out-of-scope items listed" }
 else { Write-Warn "Nothing marked out of scope - is everything really yours?" }
 
+$compRows = Get-Section $lines '^##\s*4\.\s*Components' | Where-Object { $_ -match '^\|' -and $_ -notmatch '^\|\s*(Component\s*\||-+)' }
+$nComp = 0; $nNeeds = 0
+foreach ($r in $compRows) {
+  $c = $r -split '\|'
+  if ($c.Count -ge 4 -and $c[1].Trim() -ne '') {
+    $nComp++
+    if ($c.Count -ge 6 -and $c[3].Trim() -ne '') { $nNeeds++ }
+  }
+}
+if ($nComp -ge 1) { Write-Ok "$nComp component(s) listed" } else { Write-Bad "No components listed in section 4" }
+if ($nComp -ge 1) {
+  if ($nNeeds -ge 1) { Write-Ok "$nNeeds component(s) say what they need and where it comes from" }
+  else { Write-Warn "No component says what it needs or where it comes from - that column is where the next session starts" }
+}
+
 $stories = ($lines | Where-Object { $_ -match '^[-*]\s+As an?\s' -and $_ -notmatch '<role>|<what>|<why' }).Count
 if ($stories -ge 1) { Write-Ok "$stories story/stories written" } else { Write-Bad "No stories found" }
 if ($lines | Where-Object { $_ -match '(?i)^[-*]\s+As an?\s+(user|end user)[\s,]' }) {

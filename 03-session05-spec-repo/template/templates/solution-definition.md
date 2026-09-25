@@ -20,9 +20,11 @@
 
 ## 4. Components
 
-| Component | What it does | Which capability it serves | Who owns it |
-|---|---|---|---|
-| | | | |
+| Component | What it does | What it needs, and where that comes from | Which capability it serves | Who owns it |
+|---|---|---|---|---|
+| | | | | |
+
+<!-- If a component needs nothing from outside, check it again. Almost everything does. -->
 
 ## 5. Stories
 <Role from your concern sheet. Not "a user".>
