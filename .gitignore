@@ -6,7 +6,7 @@
 #  publish it.
 # ---------------------------------------------------------------------------
 
-03-session05-spec-repo/
+# 03-session05-spec-repo/
 
 # Credentials and local state — never commit these
 fed-cred.json
