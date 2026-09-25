@@ -1,0 +1,18 @@
+# ---------------------------------------------------------------------------
+#  Junior SWAT labs — release control
+#
+#  Session labs are released to participants one at a time. A lab folder stays
+#  listed here until the session it belongs to has run; remove its line to
+#  publish it.
+# ---------------------------------------------------------------------------
+
+03-session05-spec-repo/
+
+# Credentials and local state — never commit these
+fed-cred.json
+*.tfstate
+*.tfstate.backup
+.terraform/
+.env
+*.pem
+*.key
