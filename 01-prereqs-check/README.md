@@ -16,14 +16,20 @@ install the tools from the list below first.
 
 ## How to run
 
-### Windows (PowerShell)
+### Windows
+
+Easiest — run **`check-prereqs.cmd`** (double-click it, or run `.\check-prereqs.cmd`). It runs the
+check *without executing a `.ps1` file*, so a corporate PowerShell **execution policy** (even one
+set by Group Policy) won't block it.
+
+From a terminal in this folder you can also run:
 
 ```powershell
-cd "path\to\azure-labs\01-prereqs-check"
-./check-prereqs.ps1
+Get-Content .\check-prereqs.ps1 -Raw | Invoke-Expression
 ```
 
-If scripts are blocked: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+Running `.\check-prereqs.ps1` directly also works if your machine allows script execution. If a
+downloaded file is flagged "blocked", clear it first with `Unblock-File .\check-prereqs.ps1`.
 
 ### macOS / Linux / WSL (bash)
 

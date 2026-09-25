@@ -16,7 +16,8 @@
   A bash twin (check-prereqs.sh) exists for macOS / Linux / WSL.
 =============================================================================
 #>
-[CmdletBinding()] param()
+# No parameters - kept simple so it can run via `Get-Content ... | Invoke-Expression`
+# on machines where PowerShell execution policy blocks running a .ps1 file.
 $ErrorActionPreference = 'Continue'
 $script:Pass = 0; $script:Warn = 0; $script:Fail = 0
 
