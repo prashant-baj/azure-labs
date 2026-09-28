@@ -47,7 +47,7 @@ Send them your `appId`. They run, with their Owner rights:
 
 ```bash
 az role assignment create --assignee <your-appId> --role Contributor \
-  --scope /subscriptions/b4ff8670-4b0c-484f-8565-74df13f030a6
+  --scope /subscriptions/<subscription-id>
 ```
 
 (Subscription scope is simplest; a specific resource-group scope works too if it exists.)

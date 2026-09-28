@@ -1,14 +1,16 @@
 # 00 · Azure CLI Access Check
 
-The **first** step before any Azure lab. It confirms that the Azure lab account provided
-through **vlabs** is reachable and usable from the command line, and that you can both
-**read** and **write** in the subscription.
+The **first** step before any Azure lab. It confirms three things:
 
-Run this once at the start of every lab session (the lab environment is recycled roughly
-every 4 hours, so you re-check after each reset).
+- The Azure lab account provided through **vlabs** is reachable from the command line.
+- Your machine can talk to Azure securely, including behind a company proxy.
+- You can both **read** and **write** in the subscription.
 
-> Later readiness checks in this repo will also verify local tooling — Azure CLI, Docker,
-> Terraform, Python, Node, Helm, etc. This step is **Azure login only**.
+Run this once at the start of every lab session. The lab environment is recycled roughly
+every 4 hours, so you re-check after each reset.
+
+> `01-prereqs-check` verifies your local tooling: Azure CLI, Docker, Terraform, Python, Node,
+> Helm and so on. This step is **Azure sign-in only**.
 
 ---
 
@@ -21,15 +23,15 @@ https://vlabs.stackroute.in/subscriptions/launch?id=<your-lab-id>
 ```
 
 You'll see the **Microsoft EA Azure account** control panel. If the status shows
-*Cleanup – Complete* (or the environment is stopped), click **Start** and wait until the
-status becomes **Start – Complete**.
+*Cleanup – Complete*, or the environment is stopped, click **Start**. Wait until the status
+becomes **Start – Complete**.
 
 ![vlabs Lab Control Panel — before start, with Access Details](./images/panel-access-details.png)
 
 ![vlabs Lab Control Panel — after Start – Complete](./images/panel-started.png)
 
-*(The values in the screenshots above are hidden on purpose — you read the real values
-from your own panel.)*
+*(The values in the screenshots above are hidden on purpose. Read the real values from your
+own panel.)*
 
 ---
 
@@ -43,39 +45,20 @@ exactly **two** of them:
 | **`loginId`** | **Username** | An `...@...onmicrosoft.com` address. (`loginuser` is the same value.) |
 | **`loginpassword`** | **Password** | Click the **eye** icon to reveal it, or the **copy** icon to copy it. |
 
-> ⚠️ **Use `loginpassword`.** Do **not** use `temporaryAccessPassword` or the field simply
-> labelled `password` — those are different values and will not work for sign-in.
+> ⚠️ **Use `loginpassword`.** Do **not** use `temporaryAccessPassword` or the field
+> labelled `password`. Those are different values and will not work for sign-in.
 
-Two more fields are pre-filled as defaults in the scripts; confirm they match your panel,
-and override them if yours differ (see [Overriding the defaults](#overriding-the-defaults)):
-
-| Panel field | Meaning |
-|-------------|---------|
-| `eaSubscriptionGuid` | The Azure **subscription id** the script selects |
-| `eaTenantId` | The Azure **tenant id** you sign in to |
+You do not need to copy the subscription or tenant id. The script shows the subscription your
+login lands in, and you can compare it with `eaSubscriptionGuid` on the panel.
 
 ---
 
 ## Step 3 — Run the access check
 
-The scripts use **device-code sign-in** (a browser step), because the lab tenant enforces
-MFA and blocks inline username/password login. No password is ever typed into or stored by
-the script.
+**Windows** — double-click **`az-access-check.cmd`**, or run `.\az-access-check.cmd` in a
+terminal in this folder. It works even where your company blocks PowerShell scripts.
 
-### Windows (PowerShell)
-
-```powershell
-cd "path\to\azure-labs\00-access-check"
-./az-access-check.ps1
-```
-
-If scripts are blocked by execution policy, run this once in the same window first:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-### macOS / Linux / WSL (bash)
+**macOS / Linux / WSL:**
 
 ```bash
 cd path/to/azure-labs/00-access-check
@@ -83,37 +66,52 @@ chmod +x az-access-check.sh    # first time only
 ./az-access-check.sh
 ```
 
+> Downloaded the repository as a ZIP on Windows? Before extracting, right-click the ZIP →
+> *Properties* → tick **Unblock** → *OK*. Keep the whole repository together: this check
+> uses the shared `tools` folder.
+
 ### What happens
 
-1. It prompts **`Sign in as [ ... ]`** — press **Enter** to accept the shown login id, or
-   type your own `loginId`.
-2. It prints a URL and a one-time code, e.g.:
+1. It checks that the Azure CLI is installed and whether a newer version exists.
+2. It checks that the Azure CLI can connect to Azure securely. If your company network inspects
+   HTTPS traffic, it fixes this for you (see [Behind a company proxy](#behind-a-company-proxy)).
+3. It asks for **your `loginId`**. Paste it and press **Enter**, or just press Enter to skip.
+   The script only uses it to confirm that you signed in with the right account.
+4. It prints a URL and a one-time code, for example:
 
    ```
    To sign in, use a web browser to open the page https://microsoft.com/devicelogin
    and enter the code ABCD-EFGH to authenticate.
    ```
 
-3. Open that URL, enter the code, sign in with your **`loginId` + `loginpassword`**, and
-   approve MFA if prompted.
-4. The script then checks the subscription, read access, and write access, and prints a
-   summary.
+5. Open that URL and enter the code. Sign in with your **`loginId` + `loginpassword`** and
+   approve MFA if prompted. If the browser offers your company account, choose **Use another
+   account** instead.
+6. The script then checks the subscription, read access and write access, and prints a summary.
 
-> In Windows PowerShell 5.1 the "To sign in…" line may appear in **red** — that is normal,
-> not an error.
+No password is typed into or stored by the script. Sign-in uses the device code, because the
+lab tenant enforces MFA and blocks username/password sign-in from the command line.
+
+> In Windows PowerShell 5.1 the "To sign in…" line may appear in **red**. That is normal, not
+> an error.
 
 ---
 
 ## What a good result looks like
 
 ```
-==> 4. az login (device code)
-  [PASS] Logged in.
+==> 3. Network and certificates
+  [ OK ] Secure connections to Azure work - no certificate changes needed
+  [PASS] The Azure CLI can connect to Azure securely.
+
+==> 4. Sign in
+  [PASS] Signed in.
 
 ==> 5. Subscription
-  [PASS] Subscription set to <sub id>.
-  [PASS] Active subscription id matches expected.
-  [PASS] Tenant id matches expected.
+       Signed-in user : <your loginId>
+       Subscription   : <name> (<subscription id>)
+  [PASS] Subscription is active.
+  [PASS] Signed in as the loginId you entered.
 
 ==> 6. Read access
   [PASS] Can list Azure locations (100+ available).
@@ -123,32 +121,47 @@ chmod +x az-access-check.sh    # first time only
   [PASS] Created resource group swat-readiness-... in eastus.
   [PASS] Delete of swat-readiness-... requested (running in background).
 
- Result:  8 passed   0 warnings   0 failed
+ Result:  9 passed   0 warnings   0 failed
  Lab account is reachable and usable from the CLI.
 ```
 
-All checks **PASS** → you're ready for the lab.
+All checks **PASS** → you're ready for the lab. A warning that a newer Azure CLI is available
+is fine.
 
 ---
 
-## Overriding the defaults
+## Behind a company proxy
 
-Each lab instance has its own login, subscription and tenant. Override with environment
-variables (bash) or parameters (PowerShell) to match **your** panel:
+Many company networks inspect HTTPS traffic. The Azure CLI keeps its own list of trusted
+certificates and does not trust your company's, so it fails with:
 
-| Setting | Env var (bash) | Parameter (PowerShell) |
-|---------|----------------|------------------------|
-| Login id | `LAB_LOGIN_ID` | `-LoginId` |
-| Tenant | `LAB_TENANT_ID` | `-TenantId` |
-| Subscription | `LAB_SUBSCRIPTION_ID` | `-SubscriptionId` |
-| Region for write test | `LAB_REGION` | `-Region` |
-| Skip write test | `DO_WRITE_TEST=false` | `-SkipWriteTest` |
-
-Example (bash):
-
-```bash
-LAB_LOGIN_ID='me_...@...onmicrosoft.com' LAB_SUBSCRIPTION_ID='<guid>' ./az-access-check.sh
 ```
+[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain
+```
+
+Step 3 of the check fixes this by running [`../tools/fix-company-proxy`](../tools/README.md).
+It teaches the Azure CLI (and Git and npm) to trust **exactly what your machine already
+trusts**: user-level only, no admin rights, and nothing bypassed. It changes nothing on a network
+that does not need it. [`tools/README.md`](../tools/README.md) explains what it changes, why that
+is within company policy, and how to undo it.
+
+**Do not** switch certificate checking off, or go around the proxy with a hotspot or personal
+VPN, to make the error go away. That breaks company policy.
+
+---
+
+## Optional settings
+
+The script needs no settings. These environment variables exist for unusual cases:
+
+| Variable | Default | Use |
+|----------|---------|-----|
+| `LAB_REGION` | `eastus` | Region for the write test. The lab allows `eastus`, `eastus2`, `canadacentral`. |
+| `LAB_SUBSCRIPTION_ID` | *(the one you land in)* | Pick a subscription if your login sees several. |
+| `LAB_TENANT_ID` | *(your home tenant)* | Sign in to a specific tenant. |
+| `LAB_SKIP_WRITE_TEST` | *(off)* | Set to `1` to skip the create/delete test. |
+
+Example (bash): `LAB_REGION=eastus2 ./az-access-check.sh`
 
 ---
 
@@ -156,11 +169,13 @@ LAB_LOGIN_ID='me_...@...onmicrosoft.com' LAB_SUBSCRIPTION_ID='<guid>' ./az-acces
 
 | Symptom | Cause / fix |
 |---------|-------------|
-| `az` not found | Install the Azure CLI: Windows `winget install -e --id Microsoft.AzureCLI`; macOS `brew install azure-cli`. |
+| `az` not found | Install the Azure CLI: Windows `winget install -e --id Microsoft.AzureCLI`; macOS `brew install azure-cli`. If your company manages installs, ask IT. |
+| Windows warns before running `az-access-check.cmd` | The files came from a downloaded ZIP. Unblock the ZIP before extracting (see Step 3), or choose *Run* on the warning. |
+| `CERTIFICATE_VERIFY_FAILED` | A company proxy inspects HTTPS. The check fixes it — see [Behind a company proxy](#behind-a-company-proxy). |
 | Sign-in code times out | Re-run and complete the browser step within the time limit. |
-| Login fails after a reset | The environment was recycled. Click **Start** in vlabs, wait for *Start – Complete*, then re-run. |
-| Password rejected | You may be using `temporaryAccessPassword`/`password` — use **`loginpassword`**. If it says the password is expired, sign in once at <https://portal.azure.com> to set a new one. |
-| Subscription/tenant "differs from expected" | Your lab's `eaSubscriptionGuid` / `eaTenantId` differ from the script defaults — pass your own with the overrides above. |
+| Password rejected | You may be using `temporaryAccessPassword` or `password`. Use **`loginpassword`**. If it says the password has expired, sign in once at <https://portal.azure.com> to set a new one. |
+| "Signed in as … not …" / "Lab accounts end in onmicrosoft.com" | The browser signed you in with your company account. Run the check again, and choose **Use another account** on the sign-in page. |
+| Sign-in fails or no subscription is visible after a reset | The environment was recycled. Click **Start** in vlabs, wait for *Start – Complete*, then re-run. |
 | Write test fails to create a resource group | The region may be policy-restricted. This subscription allows only **`eastus`, `eastus2`, `canadacentral`** — see [`../lab-constraints.md`](../lab-constraints.md). |
 
 ---
@@ -169,6 +184,7 @@ LAB_LOGIN_ID='me_...@...onmicrosoft.com' LAB_SUBSCRIPTION_ID='<guid>' ./az-acces
 
 | File | Platform |
 |------|----------|
-| `az-access-check.ps1` | Windows (PowerShell 5.1 or 7+) |
+| `az-access-check.cmd` | Windows — double-click this |
+| `az-access-check.ps1` | Windows (PowerShell 5.1 or 7+); run by the `.cmd` |
 | `az-access-check.sh`  | macOS / Linux / WSL (bash) |
 | `images/` | Screenshots used in this guide |

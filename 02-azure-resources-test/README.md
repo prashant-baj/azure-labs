@@ -49,19 +49,18 @@ The script does every step in the right order, and stops with a clear message if
 | # | Step | What it does |
 |---|------|--------------|
 | 1 | Tools | Checks `az` and `terraform` are installed |
-| 2 | Network | Windows only: if your company uses a proxy, tells `az` and `terraform` to use it for this run |
-| 3 | Certificates | If your network inspects HTTPS, makes the Azure CLI trust what your machine already trusts — see [Behind a company proxy](#behind-a-company-proxy) |
-| 4 | Sign-in | Signs you in to Azure if needed — and again if the lab was reset since you last signed in |
-| 5 | Resource providers | Registers the eight Azure services the stack uses (skips any already registered) |
-| 6 | Terraform | Sets aside state left over from an earlier lab session, runs `terraform init`, shows the plan and **asks you to type `yes`** |
-| 7 | Check | Waits for the app and confirms it returns HTTP 200 |
+| 2 | Network and certificates | Uses your company proxy if Windows has one. If your network inspects HTTPS, makes the Azure CLI trust what your machine already trusts. See [Behind a company proxy](#behind-a-company-proxy) |
+| 3 | Sign-in | Signs you in to Azure if needed — and again if the lab was reset since you last signed in |
+| 4 | Resource providers | Registers the eight Azure services the stack uses (skips any already registered) |
+| 5 | Terraform | Sets aside state left over from an earlier lab session, runs `terraform init`, shows the plan and **asks you to type `yes`** |
+| 6 | Check | Waits for the app and confirms it returns HTTP 200 |
 
 Read the plan before you type `yes`: on a fresh run it says **Plan: 11 to add, 0 to change,
 0 to destroy**. Container Apps and Cosmos DB take a few minutes.
 
 ### 2. Confirm
 
-**a. The app responds** — the script checks this for you (step 7 above).
+**a. The app responds** — the script checks this for you (step 6 above).
 
 **b. The resource group has every service.** In the Azure portal, open the
 `swat-stack-smoke-rg` resource group — it should contain all eight resources below (plus an
@@ -95,45 +94,20 @@ Type `yes` when Terraform lists what it will delete.
 
 ## Behind a company proxy
 
-Many company networks inspect HTTPS traffic: a proxy re-signs every website's certificate with
-the company's own root certificate. Windows and your browser trust that certificate because
-your IT team installed it — but the **Azure CLI keeps its own list of trusted certificates and
-ignores Windows'**, so it fails with:
+If your company network inspects HTTPS traffic, the Azure CLI fails with:
 
 ```
 [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain
 ```
 
-**What the script does about it — only if it sees that error:** it writes
-`%USERPROFILE%\.azure\ca-bundle.pem` (macOS/Linux: `~/.azure/ca-bundle.pem`) containing the
-Azure CLI's normal certificate list **plus the certificates your machine already trusts**, and
-sets `REQUESTS_CA_BUNDLE` for your user so the Azure CLI uses it.
+Step 2 fixes this for you by running [`../tools/fix-company-proxy`](../tools/README.md). It
+teaches the Azure CLI (and Git and npm) to trust **exactly what your machine already trusts**:
+user-level only, no admin rights, and nothing bypassed. [`tools/README.md`](../tools/README.md)
+explains what it changes, why that is within company policy, how to undo it, and what to do if
+it still fails.
 
-**Why that is within company policy:**
-- **Nothing is bypassed.** Your traffic still goes through the company proxy and is still inspected.
-- **No new trust is added.** The Azure CLI is taught to trust exactly what your machine already
-  trusts — never anything Windows marks as distrusted.
-- **User-level only.** No admin rights, no change to the machine's certificate store, no edits to
-  installed software.
-- **It is Microsoft's documented method** (the link in the error message).
-
-**To undo it** (Windows PowerShell):
-```powershell
-[Environment]::SetEnvironmentVariable("REQUESTS_CA_BUNDLE", $null, "User"); Remove-Item "$env:USERPROFILE\.azure\ca-bundle.pem"
-```
-
-**Do not "fix" the error by switching checking off or going around the proxy.** These make the
-message disappear but break company security policy:
-- `AZURE_CLI_DISABLE_CONNECTION_VERIFICATION=1`, `NODE_TLS_REJECT_UNAUTHORIZED=0`,
-  `git config http.sslVerify false`, `pip --trusted-host`, `curl -k`
-- a mobile hotspot or personal VPN to avoid the company proxy
-- installing certificates into the machine store, or editing files under `Program Files`
-
-**If the script still cannot connect,** your machine may not have the company certificate the
-usual way. Export it from the browser instead: open `https://management.azure.com` → padlock →
-*Certificate* → *Certification Path* → select the top entry → *View Certificate* → *Details* →
-*Copy to File* → **Base-64 (.CER)**. Append that file's contents to the bundle above and run the
-script again.
+**Do not** switch certificate checking off or go around the proxy (a hotspot or personal VPN) to
+make the error go away. That breaks company policy.
 
 ## Troubleshooting
 
@@ -141,6 +115,7 @@ script again.
 |---------|-------------|
 | `Please run 'az login'` | You ran `az` commands before signing in. Use the script — it signs in first. |
 | `CERTIFICATE_VERIFY_FAILED ... self-signed certificate` | A company proxy inspects HTTPS. The script fixes this — see [Behind a company proxy](#behind-a-company-proxy). |
+| "fix-company-proxy … not found" | You downloaded only this folder. Download the whole repository — the labs share the `tools` folder. |
 | "Signed in, but the lab subscription is not reachable" / `SubscriptionNotFound` | The lab was reset. Press **Start** in vlabs, wait for *Start – Complete*, run the script again. |
 | `terraform init` cannot download providers | Your network blocks it. On Windows the script uses the Windows proxy settings; if it still fails, share the exact error with your facilitator. |
 | `MissingSubscriptionRegistration` | A resource provider is not registered yet — run the script again; it registers them. |

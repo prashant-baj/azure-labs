@@ -9,9 +9,9 @@
 #    ./run-test.sh            deploy and check
 #    ./run-test.sh destroy    tear everything down
 #
-#  If (and only if) your network inspects HTTPS, it writes
-#  ~/.azure/ca-bundle.pem - the certificates your operating system already
-#  trusts - and points the Azure CLI at it for this run. Nothing is bypassed.
+#  Step 2 runs ../tools/fix-company-proxy.sh: only if your network inspects
+#  HTTPS, it makes the Azure CLI, Git and npm trust what this machine already
+#  trusts. User-level only, nothing bypassed. Details and undo: ../tools/README.md
 #  A PowerShell twin (run-test.ps1 / run-test.cmd) exists for Windows.
 # =============================================================================
 
@@ -42,44 +42,15 @@ for t in az terraform curl; do
 done
 
 # ---- 2. Certificates ---------------------------------------------------------
+# Shared with the other labs: ../tools/fix-company-proxy.sh. Only if your network
+# inspects HTTPS, it makes the Azure CLI trust what this machine already trusts.
 hdr "2. Certificates"
-PY="$(az --version 2>/dev/null | sed -n "s/^Python location '\(.*\)'$/\1/p" | head -1)"
-PROBE="import requests; requests.get('https://management.azure.com', timeout=20)"
-if [ -z "$PY" ]; then
-  wrn "Could not locate the Azure CLI's Python - skipping the certificate check"
+if [ -f ../tools/fix-company-proxy.sh ]; then
+  # shellcheck source=/dev/null
+  FIX_PROXY_NO_RUN=1 . ../tools/fix-company-proxy.sh
+  fix_company_proxy auto || exit 1
 else
-  OUT="$("$PY" -c "$PROBE" 2>&1)"; RC=$?
-  if [ $RC -eq 0 ]; then
-    ok "The Azure CLI can reach Azure securely"
-  elif echo "$OUT" | grep -q CERTIFICATE_VERIFY_FAILED; then
-    say "Your network inspects HTTPS traffic, and the Azure CLI does not yet trust"
-    say "your company's certificate. Teaching it to trust what this machine trusts..."
-    BUNDLE="$HOME/.azure/ca-bundle.pem"; mkdir -p "$HOME/.azure"; : > "$BUNDLE"
-    CERTIFI="$("$PY" -c 'import certifi; print(certifi.where())' 2>/dev/null)"
-    [ -n "$CERTIFI" ] && [ -f "$CERTIFI" ] && cat "$CERTIFI" >> "$BUNDLE"
-    if [ "$(uname -s)" = "Darwin" ]; then
-      # Company root certificates are installed into the System keychain on managed Macs.
-      security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates.keychain \
-        /Library/Keychains/System.keychain >> "$BUNDLE" 2>/dev/null
-    else
-      for f in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt; do
-        [ -f "$f" ] && { cat "$f" >> "$BUNDLE"; break; }
-      done
-    fi
-    export REQUESTS_CA_BUNDLE="$BUNDLE"
-    OUT="$("$PY" -c "$PROBE" 2>&1)"; RC=$?
-    if [ $RC -eq 0 ]; then
-      ok "Fixed - the Azure CLI now trusts what this machine trusts"
-      say "To keep this for new terminals, add to your shell profile:"
-      say "  export REQUESTS_CA_BUNDLE=\"$BUNDLE\""
-    else
-      bad "Still cannot connect securely. See \"Behind a company proxy\" in README.md"
-      say "$(echo "$OUT" | tail -1)"
-      exit 1
-    fi
-  else
-    wrn "Could not reach Azure from the Azure CLI - the next step will show the error"
-  fi
+  wrn "tools/fix-company-proxy.sh not found - skipping this step (download the whole repository, not one folder)"
 fi
 
 # ---- 3. Sign in --------------------------------------------------------------
@@ -123,8 +94,8 @@ hdr "5. Terraform"
 # State from an earlier lab session points at a subscription that no longer
 # exists (the lab resets every ~4 hours). Set it aside instead of fighting it.
 if [ -f terraform.tfstate ]; then
-  CUR="$(echo "$SUB_ID" | tr 'A-Z' 'a-z')"
-  OTHER="$(grep -oiE '/subscriptions/[0-9a-f-]{36}' terraform.tfstate | tr 'A-Z' 'a-z' | sort -u \
+  CUR="$(echo "$SUB_ID" | tr '[:upper:]' '[:lower:]')"
+  OTHER="$(grep -oiE '/subscriptions/[0-9a-f-]{36}' terraform.tfstate | tr '[:upper:]' '[:lower:]' | sort -u \
            | grep -v "/subscriptions/$CUR\$" || true)"
   if [ -n "$OTHER" ]; then
     STAMP="$(date +%Y%m%d-%H%M%S)"

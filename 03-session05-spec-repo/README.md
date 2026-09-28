@@ -111,6 +111,18 @@ Nothing in these cases is client data — the companies, the people and the numb
 for the programme — so a personal account carries no confidentiality problem. Follow your own
 organisation's policy on where work artefacts live, and ask if you are unsure.
 
+### If `git push` or `git clone` fails with a certificate error
+
+On a company network you may see `SSL certificate problem: self-signed certificate in certificate
+chain` or `unable to get local issuer certificate`. Your network inspects HTTPS traffic, and Git
+does not yet trust your company's certificate. Run **`tools/fix-company-proxy.cmd`** (Windows)
+or **`tools/fix-company-proxy.sh`** (macOS / Linux) from the root of this repository, open a new
+terminal, and push again. It makes Git trust what your machine already trusts, and switches
+nothing off — see [`tools/README.md`](../tools/README.md).
+
+Do **not** use `git config http.sslVerify false`: it switches off the check that protects your
+push, and breaks company policy.
+
 ### If you cannot push anywhere yet
 
 Work locally. `git init` needs no account, and every check in this lab passes without a remote —

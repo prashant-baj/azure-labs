@@ -11,13 +11,10 @@
   or, from a terminal in this folder:
                   Get-Content .\run-test.ps1 -Raw | Invoke-Expression
 
-  What it changes on your machine - all user-level, nothing needs admin:
-    * If (and only if) your network inspects HTTPS, it writes
-      %USERPROFILE%\.azure\ca-bundle.pem - the certificates Windows already
-      trusts - and sets REQUESTS_CA_BUNDLE for your user so the Azure CLI
-      trusts the same things Windows does. Nothing is bypassed.
-    * For this run only, it tells az and terraform to use your company proxy
-      if Windows has one configured.
+  Step 2 runs ..\tools\fix-company-proxy.ps1: for this run it uses your
+  company proxy if Windows has one, and - only if your network inspects
+  HTTPS - makes the Azure CLI, Git and npm trust what Windows already trusts.
+  User-level only, nothing bypassed. Details and undo: ..\tools\README.md
 =============================================================================
 #>
 # No param() block, so it also runs via Get-Content | Invoke-Expression on
@@ -50,92 +47,23 @@ function Invoke-ResourcesTest {
     else { Bad "$t not found - run 01-prereqs-check first"; return }
   }
 
-  # ---- 2. Company proxy (this run only) --------------------------------------
-  Hdr '2. Network'
-  $target = [Uri]'https://management.azure.com'
-  if ($env:HTTPS_PROXY) {
-    Ok "Using the proxy already set in HTTPS_PROXY ($env:HTTPS_PROXY)"
+  # ---- 2. Network and certificates ------------------------------------------
+  # Shared with the other labs: ..\tools\fix-company-proxy.ps1. It uses your
+  # company proxy for this run, and - only if your network inspects HTTPS -
+  # makes the Azure CLI trust what Windows already trusts. See tools\README.md.
+  Hdr '2. Network and certificates'
+  $helper = Join-Path (Get-Location).Path '..\tools\fix-company-proxy.ps1'
+  if (Test-Path $helper) {
+    $ProxyFixNoRun = $true
+    Get-Content -Raw $helper | Invoke-Expression
+    $trusted = Invoke-CompanyProxyFix -Action 'auto' | Select-Object -Last 1
+    if (-not $trusted) { return }
   } else {
-    try {
-      $p = [Net.WebRequest]::GetSystemWebProxy().GetProxy($target)
-      if ($p -and $p.Host -ne $target.Host) {
-        $env:HTTPS_PROXY = $p.AbsoluteUri.TrimEnd('/')
-        $env:HTTP_PROXY  = $env:HTTPS_PROXY
-        $env:NO_PROXY    = 'localhost,127.0.0.1'
-        Ok "Windows uses a proxy ($env:HTTPS_PROXY) - az and terraform will use it for this run"
-      } else {
-        Ok 'No explicit proxy configured'
-      }
-    } catch { Wrn 'Could not read the Windows proxy settings - continuing without them' }
+    Wrn 'tools\fix-company-proxy.ps1 not found - skipping this step (download the whole repository, not one folder)'
   }
 
-  # ---- 3. Certificates -------------------------------------------------------
-  Hdr '3. Certificates'
-  $py = $null
-  $verLine = (az --version 2>$null) | Where-Object { $_ -match "^Python location '(.+)'" } | Select-Object -First 1
-  if ($verLine -and ($verLine -match "^Python location '(.+)'")) { $py = $Matches[1] }
-  if (-not $py) {
-    $py = (Get-ChildItem 'C:\Program Files*\Microsoft SDKs\Azure\CLI2\python.exe' -ErrorAction SilentlyContinue |
-           Select-Object -First 1).FullName
-  }
-
-  $probe = "import requests; requests.get('https://management.azure.com', timeout=20)"
-  if (-not $py) {
-    Wrn 'Could not locate the Azure CLI''s Python - skipping the certificate check'
-  } else {
-    $out = & $py -c $probe 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0) {
-      Ok 'The Azure CLI can reach Azure securely'
-    } elseif ($out -match 'CERTIFICATE_VERIFY_FAILED') {
-      Say 'Your network inspects HTTPS traffic, and the Azure CLI does not yet trust'
-      Say 'your company''s certificate. Teaching it to trust what Windows already trusts...'
-
-      $bundle = Join-Path $env:USERPROFILE '.azure\ca-bundle.pem'
-      New-Item -ItemType Directory -Force (Split-Path $bundle) | Out-Null
-      $lines = New-Object System.Collections.Generic.List[string]
-
-      # Start from the CLI's own public certificate list...
-      $certifi = (& $py -c 'import certifi; print(certifi.where())' 2>$null | Select-Object -First 1)
-      if (-not $certifi) { $certifi = Join-Path (Split-Path $py) 'Lib\site-packages\certifi\cacert.pem' }
-      if ($certifi -and (Test-Path $certifi)) { foreach ($l in (Get-Content $certifi)) { $lines.Add($l) } }
-
-      # ...then add every certificate Windows trusts (never anything Windows distrusts).
-      $distrusted = @{}
-      Get-ChildItem 'Cert:\LocalMachine\Disallowed', 'Cert:\CurrentUser\Disallowed' -ErrorAction SilentlyContinue |
-        ForEach-Object { $distrusted[$_.Thumbprint] = $true }
-      $seen = @{}; $added = 0
-      foreach ($store in 'Cert:\LocalMachine\Root', 'Cert:\CurrentUser\Root', 'Cert:\LocalMachine\CA', 'Cert:\CurrentUser\CA') {
-        Get-ChildItem $store -ErrorAction SilentlyContinue | ForEach-Object {
-          if ($_.NotAfter -lt (Get-Date)) { return }
-          if ($seen.ContainsKey($_.Thumbprint) -or $distrusted.ContainsKey($_.Thumbprint)) { return }
-          $seen[$_.Thumbprint] = $true
-          $b64 = [Convert]::ToBase64String($_.RawData)
-          $lines.Add('-----BEGIN CERTIFICATE-----')
-          for ($i = 0; $i -lt $b64.Length; $i += 64) { $lines.Add($b64.Substring($i, [Math]::Min(64, $b64.Length - $i))) }
-          $lines.Add('-----END CERTIFICATE-----')
-          $added++
-        }
-      }
-      Set-Content -Path $bundle -Value $lines -Encoding Ascii
-      [Environment]::SetEnvironmentVariable('REQUESTS_CA_BUNDLE', $bundle, 'User')
-      $env:REQUESTS_CA_BUNDLE = $bundle
-
-      $out = & $py -c $probe 2>&1 | Out-String
-      if ($LASTEXITCODE -eq 0) {
-        Ok "Fixed - the Azure CLI now trusts what Windows trusts ($added certificates, saved for your user)"
-        Say "Bundle: $bundle"
-      } else {
-        Bad 'Still cannot connect securely. See "Behind a company proxy" in README.md'
-        Say ($out.Trim() -split "`n" | Select-Object -Last 1)
-        return
-      }
-    } else {
-      Wrn 'Could not reach Azure from the Azure CLI - the next step will show the error'
-    }
-  }
-
-  # ---- 4. Sign in ------------------------------------------------------------
-  Hdr '4. Azure sign-in'
+  # ---- 3. Sign in ------------------------------------------------------------
+  Hdr '3. Azure sign-in'
   az group list -o none 2>$null
   if ($LASTEXITCODE -ne 0) {
     Say 'Signing you in - pick your lab account (loginId) when the sign-in window opens.'
@@ -156,8 +84,8 @@ function Invoke-ResourcesTest {
   $env:ARM_SUBSCRIPTION_ID = $subId
   Ok "Using subscription $subName ($subId)"
 
-  # ---- 5. Resource providers -------------------------------------------------
-  Hdr '5. Resource providers'
+  # ---- 4. Resource providers -------------------------------------------------
+  Hdr '4. Resource providers'
   $rps = 'Microsoft.OperationalInsights', 'Microsoft.Insights', 'Microsoft.ContainerRegistry', 'Microsoft.App',
          'Microsoft.DocumentDB', 'Microsoft.ServiceBus', 'Microsoft.KeyVault', 'Microsoft.Storage'
   $pending = @()
@@ -172,8 +100,8 @@ function Invoke-ResourcesTest {
     if ($LASTEXITCODE -eq 0) { Ok "$rp registered" } else { Bad "$rp could not be registered"; return }
   }
 
-  # ---- 6. Terraform ----------------------------------------------------------
-  Hdr '6. Terraform'
+  # ---- 5. Terraform ----------------------------------------------------------
+  Hdr '5. Terraform'
 
   # State from an earlier lab session points at a subscription that no longer
   # exists (the lab resets every ~4 hours). Set it aside instead of fighting it.
@@ -204,8 +132,8 @@ function Invoke-ResourcesTest {
   terraform apply
   if ($LASTEXITCODE -ne 0) { Bad 'terraform apply failed - see the error above, and ../lab-constraints.md for the usual causes'; return }
 
-  # ---- 7. Check the app ------------------------------------------------------
-  Hdr '7. Check the app responds'
+  # ---- 6. Check the app ------------------------------------------------------
+  Hdr '6. Check the app responds'
   try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch {}
   $url = terraform output -raw app_url
   $up = $false
