@@ -23,53 +23,45 @@ All serverless / consumption / managed — **no dedicated-compute quota**, all i
 
 The Container App runs a **public hello image** so this test needs no image build.
 
-## Prerequisites
+## Before you start
 
-- `az login` done and the lab subscription active (run `00-access-check` first).
-- Terraform installed (`01-prereqs-check`).
+- In the vlabs panel, the lab shows **Start – Complete** (it resets every ~4 hours).
+- `01-prereqs-check` passes — in particular the Azure CLI and Terraform are installed.
+- **Downloaded the repository as a ZIP?** Before extracting it, right-click the ZIP →
+  *Properties* → tick **Unblock** → *OK*. Otherwise Windows marks every extracted file as
+  "from the internet" and may warn you each time you run one.
 
 ## Steps
 
-### 0. Register the resource providers (once per lab session)
+### 1. Run the test
 
+**Windows** — double-click **`run-test.cmd`**, or run `.\run-test.cmd` in a terminal in this
+folder. It works even where your company blocks PowerShell scripts.
+
+**macOS / Linux / WSL:**
 ```bash
-for rp in Microsoft.OperationalInsights Microsoft.Insights Microsoft.ContainerRegistry \
-          Microsoft.App Microsoft.DocumentDB Microsoft.ServiceBus Microsoft.KeyVault Microsoft.Storage; do
-  az provider register --namespace "$rp" --wait
-done
+chmod +x run-test.sh    # first time only
+./run-test.sh
 ```
 
-PowerShell:
-```powershell
-"Microsoft.OperationalInsights","Microsoft.Insights","Microsoft.ContainerRegistry",
-"Microsoft.App","Microsoft.DocumentDB","Microsoft.ServiceBus","Microsoft.KeyVault","Microsoft.Storage" |
-  ForEach-Object { az provider register --namespace $_ --wait }
-```
+The script does every step in the right order, and stops with a clear message if one fails:
 
-### 1. Point Terraform at your subscription
+| # | Step | What it does |
+|---|------|--------------|
+| 1 | Tools | Checks `az` and `terraform` are installed |
+| 2 | Network | Windows only: if your company uses a proxy, tells `az` and `terraform` to use it for this run |
+| 3 | Certificates | If your network inspects HTTPS, makes the Azure CLI trust what your machine already trusts — see [Behind a company proxy](#behind-a-company-proxy) |
+| 4 | Sign-in | Signs you in to Azure if needed — and again if the lab was reset since you last signed in |
+| 5 | Resource providers | Registers the eight Azure services the stack uses (skips any already registered) |
+| 6 | Terraform | Sets aside state left over from an earlier lab session, runs `terraform init`, shows the plan and **asks you to type `yes`** |
+| 7 | Check | Waits for the app and confirms it returns HTTP 200 |
 
-```powershell
-$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
-```
-(bash: `export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)`)
+Read the plan before you type `yes`: on a fresh run it says **Plan: 11 to add, 0 to change,
+0 to destroy**. Container Apps and Cosmos DB take a few minutes.
 
-### 2. Deploy
+### 2. Confirm
 
-```bash
-terraform init
-terraform apply      # type yes
-```
-
-Container Apps + Cosmos can take a few minutes. When it finishes you'll see outputs
-including `app_url` and `stack_ok`.
-
-### 3. Confirm
-
-**a. The app responds:**
-
-```bash
-curl -I $(terraform output -raw app_url)     # expect HTTP/... 200
-```
+**a. The app responds** — the script checks this for you (step 7 above).
 
 **b. The resource group has every service.** In the Azure portal, open the
 `swat-stack-smoke-rg` resource group — it should contain all eight resources below (plus an
@@ -91,14 +83,89 @@ auto-created *Application Insights Smart Detection* action group):
 A 200 **and** all eight resources present = **the whole stack is viable**. If any single
 resource is missing or failed, that's the one to redesign around (note which, and the error).
 
-### 4. Destroy (do this promptly)
+### 3. Destroy (do this promptly)
 
-```bash
-terraform destroy    # type yes
-```
+**Windows:** double-click **`destroy-test.cmd`**. **macOS / Linux / WSL:** `./run-test.sh destroy`.
+Type `yes` when Terraform lists what it will delete.
 
 > Key Vault is soft-deleted on destroy (Azure requirement). The random suffix means the next
 > run gets a fresh name, so this won't block re-runs.
+
+---
+
+## Behind a company proxy
+
+Many company networks inspect HTTPS traffic: a proxy re-signs every website's certificate with
+the company's own root certificate. Windows and your browser trust that certificate because
+your IT team installed it — but the **Azure CLI keeps its own list of trusted certificates and
+ignores Windows'**, so it fails with:
+
+```
+[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain
+```
+
+**What the script does about it — only if it sees that error:** it writes
+`%USERPROFILE%\.azure\ca-bundle.pem` (macOS/Linux: `~/.azure/ca-bundle.pem`) containing the
+Azure CLI's normal certificate list **plus the certificates your machine already trusts**, and
+sets `REQUESTS_CA_BUNDLE` for your user so the Azure CLI uses it.
+
+**Why that is within company policy:**
+- **Nothing is bypassed.** Your traffic still goes through the company proxy and is still inspected.
+- **No new trust is added.** The Azure CLI is taught to trust exactly what your machine already
+  trusts — never anything Windows marks as distrusted.
+- **User-level only.** No admin rights, no change to the machine's certificate store, no edits to
+  installed software.
+- **It is Microsoft's documented method** (the link in the error message).
+
+**To undo it** (Windows PowerShell):
+```powershell
+[Environment]::SetEnvironmentVariable("REQUESTS_CA_BUNDLE", $null, "User"); Remove-Item "$env:USERPROFILE\.azure\ca-bundle.pem"
+```
+
+**Do not "fix" the error by switching checking off or going around the proxy.** These make the
+message disappear but break company security policy:
+- `AZURE_CLI_DISABLE_CONNECTION_VERIFICATION=1`, `NODE_TLS_REJECT_UNAUTHORIZED=0`,
+  `git config http.sslVerify false`, `pip --trusted-host`, `curl -k`
+- a mobile hotspot or personal VPN to avoid the company proxy
+- installing certificates into the machine store, or editing files under `Program Files`
+
+**If the script still cannot connect,** your machine may not have the company certificate the
+usual way. Export it from the browser instead: open `https://management.azure.com` → padlock →
+*Certificate* → *Certification Path* → select the top entry → *View Certificate* → *Details* →
+*Copy to File* → **Base-64 (.CER)**. Append that file's contents to the bundle above and run the
+script again.
+
+## Troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| `Please run 'az login'` | You ran `az` commands before signing in. Use the script — it signs in first. |
+| `CERTIFICATE_VERIFY_FAILED ... self-signed certificate` | A company proxy inspects HTTPS. The script fixes this — see [Behind a company proxy](#behind-a-company-proxy). |
+| "Signed in, but the lab subscription is not reachable" / `SubscriptionNotFound` | The lab was reset. Press **Start** in vlabs, wait for *Start – Complete*, run the script again. |
+| `terraform init` cannot download providers | Your network blocks it. On Windows the script uses the Windows proxy settings; if it still fails, share the exact error with your facilitator. |
+| `MissingSubscriptionRegistration` | A resource provider is not registered yet — run the script again; it registers them. |
+| `RequestDisallowedByPolicy` | The lab policy blocked something — see `../lab-constraints.md`. |
+| Windows warns before running `run-test.cmd` | The files came from a downloaded ZIP. Unblock the ZIP before extracting (see *Before you start*), or choose *Run* on the warning. |
+
+## Doing it by hand
+
+The script is a convenience, not magic — these are the same steps, in the same order, if you
+want to see each one. **Sign in first**; every other command needs it.
+
+```powershell
+az login
+"Microsoft.OperationalInsights","Microsoft.Insights","Microsoft.ContainerRegistry","Microsoft.App",
+"Microsoft.DocumentDB","Microsoft.ServiceBus","Microsoft.KeyVault","Microsoft.Storage" |
+  ForEach-Object { az provider register --namespace $_ --wait }
+$env:ARM_SUBSCRIPTION_ID = az account show --query id -o tsv
+terraform init
+terraform apply                                  # type yes
+Invoke-WebRequest (terraform output -raw app_url) -UseBasicParsing | Select-Object StatusCode
+terraform destroy                                # when done - type yes
+```
+
+(bash: the same, with `export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)` and
+`curl -I $(terraform output -raw app_url)`.)
 
 ---
 
@@ -112,6 +179,9 @@ docker build -t myapp:v1 .
 # ...or build server-side in ACR (no local Docker needed):
 az acr build --registry <acr-name> --image myapp:v1 .
 ```
+
+Behind a company proxy, prefer `az acr build`: the build runs in Azure, so steps inside your
+`Dockerfile` (such as `npm install`) are not affected by the proxy.
 
 **2. Push** to ACR (skip if you used `az acr build`, which already pushed):
 ```bash
