@@ -187,4 +187,5 @@ Example (bash): `LAB_REGION=eastus2 ./az-access-check.sh`
 | `az-access-check.cmd` | Windows — double-click this |
 | `az-access-check.ps1` | Windows (PowerShell 5.1 or 7+); run by the `.cmd` |
 | `az-access-check.sh`  | macOS / Linux / WSL (bash) |
-| `images/` | Screenshots used in this guide |
+| [`claude-code-setup.md`](claude-code-setup.md) | Set up Claude Code in VS Code with the lab AI key (for participants without a Claude licence) |
+| `images/` | Screenshots used in these guides |
