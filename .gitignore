@@ -10,6 +10,7 @@
 #04-session06-integration/
 #05-session07-contracts/
 #06-session08-nfr/
+# 07-session09-spec/
 
 # Credentials and local state — never commit these
 fed-cred.json
