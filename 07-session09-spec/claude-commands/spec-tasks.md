@@ -15,8 +15,10 @@ Rules:
 - Each task fits in half a day or less. If it does not, split it.
 - `[P]` only when the task touches different files from the one before and does not depend on it.
 - Order by risk: the rule and the failure paths early, polish late.
-- No stack-specific commands — the stack is not decided. "Write a test that…" is fine;
-  a framework name is not.
+- Use the stack in plan section 8, and only that. A task may name it — "Create the project skeleton
+  with <framework> and <test runner>". If a task needs a library or tool the ADR does not name, put
+  it under *Not yet* with `[NEEDS CLARIFICATION: new tool — needs an ADR]`.
+- Tasks say what to do, not how to code it. No code in `tasks.md`.
 - At most twenty-five tasks. If the slice needs more, **stop** and say the slice is too big, and
   propose how to split it. Do not write a longer list.
 

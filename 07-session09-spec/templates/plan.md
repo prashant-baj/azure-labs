@@ -2,8 +2,9 @@
 
 *Built from: `spec.md` as of <date> · Status: draft*
 
-> **How.** This file may name technology — but the stack is not decided yet.
-> Where the stack matters, say what the plan **needs** from it (section 8), not which one.
+> **How.** This file names technology — the architecture and stack the group decided in its ADR
+> (`specs/design/adr/<number>-architecture-and-stack.md`). It applies them to this slice; it does not
+> re-decide them.
 > Anything the assistant inferred rather than took from our files is marked *(inferred)*.
 
 ## 1. The approach in one paragraph
@@ -51,13 +52,19 @@ Every rule in `constitution.md` either passes, or is broken on purpose with a re
 | End to end | The slice works from input to downstream effect | |
 | Failure path | A person sees what went wrong | |
 
-## 8. Stack — open decision
+## 8. Architecture and stack — from ADR <number>
 
-**Not decided in this file.** List what any stack must give this slice.
+Decided by the group in `specs/design/adr/<number>-architecture-and-stack.md`. Copied here, not
+re-decided. A change of stack is a new ADR first, then this section.
 
-| Needed from the stack | Because |
-|---|---|
-| | FR-… / NFR-… |
+| Layer | Choice | What this slice needs from it | Because |
+|---|---|---|---|
+| Architecture | | | NFR-… / C-… |
+| Language | | | |
+| Framework | | | |
+| Data store | | | |
+| Test runner | | | |
+| Runs on | | | |
 
 ## 9. Risks, and what we try first
 

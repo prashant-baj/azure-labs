@@ -18,7 +18,8 @@ from, and give the treasurer a reminder list that does not include people who ha
 |---|---|
 | `constitution.md` | Sources on every rule. Section 4 untouched |
 | `spec.md` | Section 0 in plain words. IDs and sources. The *If* rows. No technology anywhere |
-| `plan.md` | The constitution check. Section 8 — the stack left open on purpose. Section 11 — two diagrams as code |
+| `0003-architecture-and-stack.md` | The ADR the group decided after the spec. Drivers first, two options each, every reason names a driver, one honest open question. In a real repo: `specs/design/adr/` |
+| `plan.md` | The constitution check. Section 8 — the stack copied from the ADR, not re-decided. Section 11 — two diagrams as code |
 | `tasks.md` | Every task names an ID. Tests before builds. The failure paths early |
 
 This example is deliberately small. Yours will have more `[NEEDS CLARIFICATION]` markers — this one

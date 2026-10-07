@@ -132,6 +132,22 @@ else
   warn "$NNC [NEEDS CLARIFICATION] marker(s) open - fine, if each is in section 10 with who can answer ($WHO named)"
 fi
 
+# --- Architecture and stack ---------------------------------------------------
+hdr "Architecture and stack - what we build with"
+ADR=$(ls "$REPO"/specs/design/adr/*architecture*.md 2>/dev/null | sort | tail -1)
+if [ -z "$ADR" ]; then warn "No architecture-and-stack ADR in specs/design/adr/ - /spec-architecture, then decide as a group"
+else
+  ok "ADR: ${ADR#$REPO/}"
+  NOPT=$(section "$ADR" "## 2." | grep -E '^\|[[:space:]]*[A-E][[:space:]]*\|' | cell 2 | grep -c . || true)
+  [ "$NOPT" -ge 2 ] && ok "$NOPT architecture options compared" || warn "Fewer than two architecture options - a choice needs something to choose between"
+  NDRV=$(section "$ADR" "## 1." | grep -E '^\|' | grep -vE '^\|[[:space:]]*(Driver|-+)[[:space:]]*\|' | grep -vE '<[a-zA-Z][^>]*>' | cell 2 | grep -c . || true)
+  [ "$NDRV" -ge 3 ] && ok "$NDRV drivers named" || warn "Only $NDRV driver(s) filled - the options are compared against these"
+  if grep -q 'DECISION NEEDED' "$ADR" || grep -qiE 'Status: *proposed' "$ADR" || ! section "$ADR" "## 4." | grep -q '^We will'; then
+    warn "Not decided yet - the group writes the 'We will ...' sentence in section 4 and sets Status: accepted"
+  else ok "Decided by the group, and accepted"; fi
+  git -C "$REPO" ls-files --error-unmatch "${ADR#$REPO/}" >/dev/null 2>&1 && ok "ADR committed" || warn "ADR not committed yet - adr: architecture and stack"
+fi
+
 # --- Plan -------------------------------------------------------------------
 hdr "Plan - how"
 if [ ! -f "$PLAN" ] || grep -q '<How the slice works' "$PLAN"; then warn "plan.md not written yet - /spec-plan"
@@ -147,8 +163,10 @@ else
     [ -f "$REPO/specs/design/$c" ] || BADLINK="$BADLINK $c"
   done
   [ -z "$BADLINK" ] && ok "Every contract the plan links exists" || warn "Plan links contracts that do not exist:$BADLINK"
-  STACK=$(section "$PLAN" "## 8." | grep -oE '\b(Java|Spring|Python|FastAPI|Django|Flask|Node\.?js|Express|NestJS|\.NET|C#)\b' | sort -u | tr '\n' ' ')
-  [ -z "$STACK" ] && ok "Stack left open, as it should be for now" || warn "Section 8 names a stack ($STACK) - it has not been decided yet"
+  S8=$(section "$PLAN" "## 8.")
+  if echo "$S8" | grep -qE '^\|[[:space:]]*Language[[:space:]]*\|[[:space:]]*\|'; then warn "Section 8 is still empty - copy the decision from the ADR"
+  elif [ -n "$ADR" ] && { grep -E '^## 8\.' "$PLAN"; echo "$S8"; } | grep -qE "$(basename "$ADR" | cut -c1-4)|architecture-and-stack"; then ok "Section 8 applies the stack from the ADR"
+  else warn "Section 8 does not point at the architecture-and-stack ADR"; fi
   NMER=$(grep -c '^```mermaid' "$PLAN" || true)
   if grep -q '<this slice>' "$PLAN"; then warn "Diagrams in section 11 still hold template placeholders"
   elif [ "$NMER" -ge 2 ]; then ok "$NMER diagrams as code in the plan"

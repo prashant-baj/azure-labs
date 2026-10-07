@@ -131,6 +131,27 @@ else {
   Warn "$nnc line(s) with [NEEDS CLARIFICATION] - fine, if each is in section 10 with who can answer ($who named)"
 }
 
+# --- Architecture and stack -------------------------------------------------------
+Hdr "Architecture and stack - what we build with"
+$adrDir = Join-Path $Repo "specs\design\adr"
+$AdrF = Get-ChildItem $adrDir -Filter "*architecture*.md" -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+if (-not $AdrF) { Warn "No architecture-and-stack ADR in specs/design/adr/ - /spec-architecture, then decide as a group" }
+else {
+  $A = Lines $AdrF.FullName
+  $adrRel = "specs/design/adr/" + $AdrF.Name
+  Ok "ADR: $adrRel"
+  $nopt = @(Section $A "## 2." | Where-Object { $_ -match '^\|\s*[A-E]\s*\|' -and (Cell $_ 2) -ne "" }).Count
+  if ($nopt -ge 2) { Ok "$nopt architecture options compared" } else { Warn "Fewer than two architecture options - a choice needs something to choose between" }
+  $ndrv = @(Section $A "## 1." | Where-Object { $_ -match '^\|' -and $_ -notmatch '^\|\s*(Driver|-+)\s*\|' -and $_ -notmatch $Placeholder -and (Cell $_ 2) -ne "" }).Count
+  if ($ndrv -ge 3) { Ok "$ndrv drivers named" } else { Warn "Only $ndrv driver(s) filled - the options are compared against these" }
+  $atext = $A -join "`n"
+  $weWill = @(Section $A "## 4." | Where-Object { $_ -match '^We will' }).Count
+  if ($atext -match 'DECISION NEEDED' -or $atext -match '(?i)Status:\s*proposed' -or $weWill -eq 0) { Warn "Not decided yet - the group writes the 'We will ...' sentence in section 4 and sets Status: accepted" }
+  else { Ok "Decided by the group, and accepted" }
+  git -C $Repo ls-files --error-unmatch $adrRel 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) { Ok "ADR committed" } else { Warn "ADR not committed yet - adr: architecture and stack" }
+}
+
 # --- Plan -----------------------------------------------------------------------
 Hdr "Plan - how"
 $P = Lines $PlanP
@@ -144,8 +165,10 @@ else {
   if ($miss.Count -eq 0) { Ok "Every FR has a home in the plan" } else { Warn ("FR with no home in the plan: " + ($miss -join ' ')) }
   $badlink = @([regex]::Matches($ptext, 'contracts/[A-Za-z0-9._-]+\.md') | ForEach-Object { $_.Value } | Sort-Object -Unique | Where-Object { -not (Test-Path (Join-Path $designDir $_)) })
   if ($badlink.Count -eq 0) { Ok "Every contract the plan links exists" } else { Warn ("Plan links contracts that do not exist: " + ($badlink -join ' ')) }
-  $stack = @([regex]::Matches(((Section $P "## 8.") -join "`n"), '\b(Java|Spring|Python|FastAPI|Django|Flask|Node\.?js|Express|NestJS|\.NET|C#)\b') | ForEach-Object { $_.Value } | Sort-Object -Unique)
-  if ($stack.Count -eq 0) { Ok "Stack left open, as it should be for now" } else { Warn ("Section 8 names a stack (" + ($stack -join ' ') + ") - it has not been decided yet") }
+  $s8 = @(Section $P "## 8."); $h8 = @($P | Where-Object { $_ -match '^## 8\.' })
+  if ($s8 | Where-Object { $_ -match '^\|\s*Language\s*\|\s*\|' }) { Warn "Section 8 is still empty - copy the decision from the ADR" }
+  elseif ($AdrF -and ((($h8 + $s8) -join "`n") -match ([regex]::Escape($AdrF.Name.Substring(0,4)) + '|architecture-and-stack'))) { Ok "Section 8 applies the stack from the ADR" }
+  else { Warn "Section 8 does not point at the architecture-and-stack ADR" }
   $nmer = @($P | Where-Object { $_ -match '^```mermaid' }).Count
   if ($ptext -match '<this slice>') { Warn "Diagrams in section 11 still hold template placeholders" }
   elseif ($nmer -ge 2) { Ok "$nmer diagrams as code in the plan" }

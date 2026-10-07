@@ -17,6 +17,7 @@ Everything this group has decided, in the order a new joiner should read it.
 | `integration-decisions.md` | 6 · how the pieces talk |
 | `contracts/` | 7 · what we promised each other |
 | `adr/` | 7 · why we chose it, and what it cost |
+| `adr/NNNN-architecture-and-stack.md` | 9 · what we build it with, and why — decided after the spec |
 | `nfr-register.md`, `constraints.md` | 8 · how well, and the rules we were handed |
 
 ## Layer 4 · one folder per slice
@@ -24,7 +25,7 @@ Everything this group has decided, in the order a new joiner should read it.
 | File | Says | Changes when |
 |---|---|---|
 | `spec.md` | What and why. No technology | The client's need changes |
-| `plan.md` | How — including the diagrams, as code | The design changes |
+| `plan.md` | How — on the decided stack, with the diagrams as code | The design changes |
 | `tasks.md` | In what order, in small steps | Work is done or re-ordered |
 | `trace.md` | Which requirement leads to which task and test | Re-run `/spec-trace` after any change |
 

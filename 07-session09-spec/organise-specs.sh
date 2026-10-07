@@ -106,7 +106,7 @@ fi
 # --- 3. Templates, prompts, commands ------------------------------------------
 hdr "3 · Templates, prompts and Claude Code commands"
 mkdir -p "$REPO/templates" "$REPO/prompts" "$REPO/.claude/commands"
-for t in constitution spec plan tasks; do
+for t in constitution spec adr-architecture plan tasks; do
   if [ -f "$REPO/templates/$t.md" ]; then ok "templates/$t.md already exists - left alone"
   else cp "$HERE/templates/$t.md" "$REPO/templates/$t.md" && ok "templates/$t.md added"; fi
 done

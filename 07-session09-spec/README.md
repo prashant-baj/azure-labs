@@ -9,10 +9,12 @@ This lab does two things:
 1. **Organises** your repository into four layers, so a new joiner — or an assistant — reads it in
    the right order.
 2. **Turns it into a spec a team can build from**: a constitution, then for your first slice a spec,
-   a plan and a list of tasks, every line traced back to where it came from.
+   **an architecture and stack decision**, a plan and a list of tasks, every line traced back to
+   where it came from.
 
-No code is written today. No Azure resources are created. The stack is not decided yet, and that is
-deliberate — a good spec does not depend on it.
+No code is written today. No Azure resources are created. But today you **decide what you will
+build with** — the architecture, the language, the framework — and write down why, as an ADR.
+The order matters: the spec first, without technology; then the stack, chosen *for* that spec.
 
 ## Where this fits
 
@@ -35,19 +37,20 @@ specs/
   design/                 layer 3 - Module 2, moved here with history kept
     solution-definition.md  integration-decisions.md  contracts/  adr/
     nfr-register.md  constraints.md  diagrams/
+    adr/NNNN-architecture-and-stack.md   NEW - what you build with, and why (the group decides)
   001-<your-slice>/       layer 4 - what you build first
     spec.md               what and why - no technology
-    plan.md               how - stack left open, diagrams as code (Mermaid)
+    plan.md               how - on the decided stack, diagrams as code (Mermaid)
     tasks.md              small steps, tests first, each with a requirement ID
     trace.md              written by /spec-trace: requirement -> task -> test, and the gaps
-templates/                + constitution, spec, plan, tasks
+templates/                + constitution, spec, adr-architecture, plan, tasks
 prompts/09-spec-driven.md
 .claude/commands/         /spec-constitution  /spec-specify  /spec-clarify
-                          /spec-plan  /spec-tasks  /spec-trace
+                          /spec-architecture  /spec-plan  /spec-tasks  /spec-trace
 ```
 
 The layout and the steps follow the same shape as GitHub's open-source **Spec Kit** — constitution,
-specify, plan, tasks — delivered as Claude Code commands inside your repository, so there is nothing
+specify, clarify, plan, tasks — with one step of our own, the architecture decision, delivered as Claude Code commands inside your repository, so there is nothing
 to install.
 
 ## Before you start
@@ -86,9 +89,10 @@ commit**. It never deletes or overwrites anything you wrote. It refuses to run o
 | 3 | `/spec-constitution` — then check every row has a source | `spec: constitution` |
 | 4 | `/spec-specify specs/001-…` — then check IDs, sources, no technology, one *If* row | `spec: assembled` |
 | 5 | `/spec-clarify specs/001-…` — **you** answer; park what you cannot | `spec: clarified` |
-| 6 | `/spec-plan specs/001-…` then `/spec-tasks specs/001-…` | `plan: v1` · `tasks: v1` |
-| 7 | `/spec-trace specs/001-…` — read the gaps aloud, fix the top one | `trace: v1` |
-| 8 | Check, then push to GitLab (Part C, Part D) | — |
+| 6 | `/spec-architecture specs/001-…` — it proposes; **you decide** and write the decision sentence | `adr: architecture and stack` |
+| 7 | `/spec-plan specs/001-…` then `/spec-tasks specs/001-…` | `plan: v1` · `tasks: v1` |
+| 8 | `/spec-trace specs/001-…` — read the gaps aloud, fix the top one | `trace: v1` |
+| 9 | Check, then push to GitLab (Part C, Part D) | — |
 
 **Step 2 is committed before the assistant opens the file.** That commit is your group's own
 definition of the slice. Everything after it is the assistant assembling your records around it.
@@ -98,6 +102,27 @@ definition of the slice. Everything after it is the assistant assembling your re
 The assistant **assembles, and must cite**. Every line it writes carries the file it came from. A
 line with no source is either deleted or becomes `[NEEDS CLARIFICATION]`. It does not get to fill a
 gap with something plausible.
+
+### Step 6 · Choosing the architecture and stack
+
+This is the one step today where the assistant **offers options, and the group decides** — the way
+it did in Session 6. `/spec-architecture` first asks which languages and frameworks at least two of
+you can build and debug without help. Then it lists the drivers — your NFRs, constraints,
+constitution rules and seams — and compares at least two options against them. Every reason must
+name a driver.
+
+You decide. Five questions before you write the decision sentence:
+
+1. Does it meet our NFRs — and which ones does it make harder?
+2. Does it fit our seams — call, message, file?
+3. Does it break a rule in the constitution?
+4. Can at least two of us debug it without help?
+5. Are we choosing it for a driver, or because it is trending?
+
+If the facilitator has given the program a shortlist, choose from it. The decision goes in
+`specs/design/adr/NNNN-architecture-and-stack.md`, because it is a design decision for the whole
+system — not just this slice. The spec does not change: it stays free of technology. Once accepted,
+the ADR is never edited; a change of stack is a new ADR.
 
 ### If not everybody has Claude access
 
@@ -128,7 +153,8 @@ required is missing.
 | Every row has a source | Traceability starts here |
 | No technology names in the spec; no words that cannot fail | What and why, never how |
 | Open `[NEEDS CLARIFICATION]` each have someone who can answer | Honest gaps beat confident guesses |
-| Plan: constitution check, every FR placed, contract links real, stack left open | A plan that ignores the constitution is a failed plan |
+| Architecture-and-stack ADR: present, at least two options, decided and accepted | A stack with no recorded reason gets changed by whoever is loudest |
+| Plan: constitution check, every FR placed, contract links real, section 8 points at the ADR | A plan that ignores the constitution is a failed plan |
 | Plan: two Mermaid diagrams — area map, and a sequence with a failure branch | Pictures that change in the same commit as the plan never go stale |
 | Tasks: twenty-five or fewer, each with an ID, tests present, every FR and RULE covered | No task, no build. No ID, no reason |
 | `trace.md` present; files committed; pushed to GitLab | The chain, and the remote |
@@ -175,6 +201,22 @@ automatically.
 society matching maintenance payments. It passes every check in this lab. Read it **after** you have
 written your own section 0, not before; it is there to show the shape, not the answer.
 
+## Homework — before Friday (about forty-five minutes, reading only)
+
+Nothing to write, nothing to commit, nothing to hand in. The aim is simply to know your way around
+this folder before Friday.
+
+| # | Look at | Notice | Time |
+|---|---|---|---|
+| 1 | `README.md` (this file) | The four layers, and the order of work — what comes first, and why | 10 min |
+| 2 | `templates/` | Constitution, spec, plan, tasks — what each section asks for | 10 min |
+| 3 | `claude-commands/` | The seven `/spec-` commands. Read them like instructions to a colleague: what each asks for, and what it forbids | 10 min |
+| 4 | `examples/society-dues/` | A finished set, with its architecture-and-stack ADR. What the plan may say that the spec may not | 10 min |
+| 5 | `organise-specs`, `check-spec`, `connect-gitlab` | Skim the comment at the top of each script. Know when you would run it | 5 min |
+
+**Think about** (no need to write anything down): Why is section 0 written by hand? What does
+`/spec-specify` do when your files are silent? Where does a framework name belong?
+
 ## Notes
 
 - **Warnings are not failures.** Read them, decide, and be ready to explain at the debrief.
@@ -182,3 +224,5 @@ written your own section 0, not before; it is there to show the shape, not the a
   is for.
 - **The spec changes first.** From today, any change to what the system does starts in `spec.md`
   and its change log — then the plan, then the tasks, then the code.
+- **The stack changes through an ADR.** A new framework, library or service starts as a new ADR —
+  never as a line of code someone slipped in.

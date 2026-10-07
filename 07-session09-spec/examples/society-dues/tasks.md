@@ -5,7 +5,7 @@
 Format: `- [ ] T001 [P] <verb> <what> — FR-001 · done when: <check>`
 
 ## Phase 1 · Set up
-- [ ] T001 Create the project skeleton with one passing test and a health check — W-002 · done when: the pipeline is green
+- [ ] T001 Create the FastAPI project skeleton with one passing pytest test and a health check, as ADR 0003 decides — W-002 · done when: the pipeline is green
 
 ## Phase 2 · Tests first — contracts and rule examples
 - [ ] T002 Write the five RULE-001 examples as one table-driven test — RULE-001, FR-003 · done when: the test runs and fails for the right reason

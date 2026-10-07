@@ -63,17 +63,19 @@ unmatched list.
 | End to end | The slice works from input to the reminder list | Pay by UPI, load the file, flat not on the list, counted once |
 | Failure path | A person sees what went wrong | No file today — warning on every answer |
 
-## 8. Stack — open decision
+## 8. Architecture and stack — from ADR 0003
 
-| Needed from the stack | Because |
-|---|---|
-| Receive a message and answer a call over HTTP | FR-001, FR-005 |
-| Read a delimited file | FR-002 |
-| Store records that are never updated in place | C-001 |
-| A test runner that can run the rule examples as a table | RULE-001 |
-| Something to run a simple load test | NFR-001 |
+Decided by the group in `specs/design/adr/0003-architecture-and-stack.md`. Copied here, not
+re-decided. A change of stack is a new ADR first, then this section.
 
-**Decision:** to be confirmed by the facilitator. Not chosen in this file.
+| Layer | Choice | What this slice needs from it | Because |
+|---|---|---|---|
+| Architecture | One deployable, separate modules | Receivers, matcher and dues service from section 3 as modules, not services | Q-002, Team |
+| Language | Python | — | Team |
+| Framework | FastAPI | Receive the UPI message and answer the dues call over HTTP, with a role check | FR-001, FR-005, C-002 |
+| Data store | PostgreSQL | Insert-only tables; a unique key on the bank reference; the load count in one transaction | C-001, FR-004, NFR-002 |
+| Test runner | pytest | The five RULE-001 examples as one table test | RULE-001 |
+| Runs on | One container | A load test while a file is loading *(inferred from the ADR's consequences)* | NFR-001 |
 
 ## 9. Risks, and what we try first
 

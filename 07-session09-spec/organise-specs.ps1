@@ -104,7 +104,7 @@ if ($existing -and -not $SliceGiven) {
 # --- 3. Templates, prompts, commands ------------------------------------------
 Hdr "3 - Templates, prompts and Claude Code commands"
 foreach ($d in @("templates","prompts",".claude\commands")) { New-Item -ItemType Directory -Force -Path (Join-Path $Repo $d) | Out-Null }
-foreach ($t in @("constitution","spec","plan","tasks")) {
+foreach ($t in @("constitution","spec","adr-architecture","plan","tasks")) {
   $dst = Join-Path $Repo "templates\$t.md"
   if (Test-Path $dst) { Ok "templates/$t.md already exists - left alone" }
   else { Copy-Item (Join-Path $Here "templates\$t.md") $dst; Ok "templates/$t.md added" }
