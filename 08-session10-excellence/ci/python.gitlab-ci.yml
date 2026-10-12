@@ -1,0 +1,37 @@
+# Engineering rules as checks — Python stack (E-003, E-006, E-008, E-010, tests).
+# Copy to the root of your repository as .gitlab-ci.yml, then push.
+# Runner: the programme's runner tag — confirm it with your facilitator.
+
+stages: [check, test]
+
+default:
+  tags: [junior-SWAT-engineers-program]
+
+lint:
+  stage: check
+  image: python:3.12-slim
+  script:
+    - pip install --quiet ruff
+    - ruff format --check .        # E-010 formatting
+    - ruff check .                 # E-003 complexity, E-006 no catch-all (rules set in pyproject.toml)
+
+secrets:
+  stage: check
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"                 # scan the whole history, not just the last commits
+  script:
+    - gitleaks git --redact --no-banner -v .      # E-008, W-004
+
+test:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install --quiet -r requirements.txt
+    - pytest --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml            # results show in the merge request

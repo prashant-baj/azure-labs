@@ -143,6 +143,10 @@ lab's OpenRouter key, the commands work the same way. If you are using a chat as
 Each check reports `[ OK ]`, `[WARN]` or `[FAIL]`. The script exits non-zero only if something
 required is missing.
 
+The last section, **Ready for the build layers?**, checks the minimum bar you need before Session 10
+builds on this spec — `HAVE` or `NEED` per line, then `READY` or `NOT YET`. See
+[`../BUILD-ROADMAP.md`](../BUILD-ROADMAP.md) for how every later session adds a layer on top of it.
+
 | Check | Why |
 |---|---|
 | The four layers exist; Module 2 is all in `specs/design/` | Later sessions read these paths |

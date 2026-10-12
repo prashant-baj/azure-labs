@@ -1,0 +1,41 @@
+# Engineering rules as checks — Node / TypeScript (E-003, E-006, E-008, E-010, tests).
+# Copy to the root of your repository as .gitlab-ci.yml, then push.
+# Assumes package.json has scripts "lint" (ESLint) and "test" (Jest with jest-junit, or Vitest
+# with its junit reporter) writing report.xml — see templates/engineering-rules.md.
+
+stages: [check, test]
+
+default:
+  tags: [junior-SWAT-engineers-program]
+
+cache:
+  paths: [node_modules/]
+
+lint:
+  stage: check
+  image: node:22
+  script:
+    - npm ci
+    - npx prettier --check .       # E-010
+    - npm run lint                 # E-003, E-006
+
+secrets:
+  stage: check
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - gitleaks git --redact --no-banner -v .
+
+test:
+  stage: test
+  image: node:22
+  script:
+    - npm ci
+    - npm test
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml

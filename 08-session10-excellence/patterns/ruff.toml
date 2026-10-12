@@ -1,0 +1,10 @@
+# The same checks as examples/society-dues (E-003 complexity, E-006 no blind except).
+# *_before.py files are bad on purpose - they are excluded.
+line-length = 120
+extend-exclude = ["*_before.py", "*.md"]
+
+[lint]
+select = ["E", "F", "B", "BLE", "SIM", "C901"]
+
+[lint.mccabe]
+max-complexity = 5

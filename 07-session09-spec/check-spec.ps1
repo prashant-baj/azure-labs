@@ -222,6 +222,37 @@ if (Test-Path (Join-Path $Repo ".git")) {
   }
 }
 
+# --- Ready for the build layers? ---------------------------------------------------
+# The minimum a group needs before it builds the next layer (BUILD-ROADMAP.md).
+# Reported separately: it does not change the ok / warnings / failed count.
+Hdr "Ready for the build layers? (the minimum bar - see BUILD-ROADMAP.md)"
+$script:Miss = 0
+function Bar($have, $m) { if ($have) { Write-Host "  [ HAVE ] $m" -ForegroundColor Green } else { Write-Host "  [ NEED ] $m" -ForegroundColor Red; $script:Miss++ } }
+Bar ($C.Count -gt 0 -and -not (($C -join "`n") -match '<case name>|<date>|<names>')) "constitution.md filled in - no template placeholders"
+Bar ($s0 -and -not (($s0 -join "`n") -match '<One paragraph\.>')) "Section 0 of spec.md - the slice in your own words"
+$frsrc = @(Rows $S "FR" | Where-Object { (Cell $_ 2) -ne "" -and (Cell $_ 3) -ne "" }).Count
+Bar ($frsrc -ge 3) "At least three requirements with an ID and a source ($frsrc now)"
+Bar (@(Rows $S "FR" | Where-Object { (Cell $_ 2) -match '^If .*then the system shall' }).Count -ge 1) "At least one 'If ... then' requirement"
+$adrOk = $false
+if ($AdrF) {
+  $at = (Lines $AdrF.FullName) -join "`n"
+  $ww = @(Section (Lines $AdrF.FullName) "## 4." | Where-Object { $_ -match '^We will' }).Count
+  $adrOk = -not ($at -match 'DECISION NEEDED' -or $at -match '(?i)Status:\s*proposed' -or $ww -eq 0)
+}
+Bar $adrOk "Architecture and stack decided - accepted ADR in specs/design/adr/"
+$pushed = $false
+if (Test-Path (Join-Path $Repo ".git")) {
+  git -C $Repo rev-parse --abbrev-ref '@{u}' 2>$null | Out-Null
+  if ($LASTEXITCODE -eq 0) { $pushed = ([int](git -C $Repo rev-list --count '@{u}..HEAD' 2>$null) -eq 0) }
+}
+Bar $pushed "Committed and pushed to your GitLab project"
+Write-Host ""
+if ($script:Miss -eq 0) { Write-Host "  READY - you can build the next layer. Finish plan, tasks and trace as you go." -ForegroundColor Green }
+else { Write-Host "  NOT YET - $($script:Miss) item(s) above. Close these first: the next layer is built on them." -ForegroundColor Yellow }
+$pl = Lines $PlanP
+if ($pl.Count -gt 0 -and -not (($pl -join "`n") -match '<How the slice works')) { Write-Host "  next: plan.md written" } else { Write-Host "  next: plan.md - /spec-plan (needed before you build)" }
+if ($tl.Count -gt 0) { Write-Host "  next: tasks.md has $($tl.Count) task(s)" } else { Write-Host "  next: tasks.md - /spec-tasks (needed before you build)" }
+
 Write-Host ""
 Write-Host "============================================================"
 Write-Host (" ok: {0}   warnings: {1}   failed: {2}" -f $script:Pass, $script:WarnN, $script:Fail)

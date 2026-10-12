@@ -10,7 +10,9 @@ lab subscription.
 | [`02-azure-resources-test`](02-azure-resources-test/README.md) | Deploys the lab stack once, to prove it works |
 | [`tools`](tools/README.md) | Makes the Azure CLI, Git and npm work behind a company proxy — without switching security off |
 
-Session labs are added to this repository as each session runs. What the lab subscription
+Session labs are added to this repository as each session runs. From Session 9 onwards every lab
+adds one layer to the same system — see [`BUILD-ROADMAP.md`](BUILD-ROADMAP.md) for the layers, the
+order, and the minimum bar before you build the next one. What the lab subscription
 allows and blocks is in [`lab-constraints.md`](lab-constraints.md).
 
 **On Windows**, start each lab with its `.cmd` file (double-click it). That works even where

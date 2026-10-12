@@ -221,6 +221,35 @@ if [ -d "$REPO/.git" ]; then
   fi
 fi
 
+# --- Ready for the build layers? ------------------------------------------------
+# The minimum a group needs before it builds the next layer (BUILD-ROADMAP.md).
+# Reported separately: it does not change the ok / warnings / failed count.
+hdr "Ready for the build layers? (the minimum bar - see BUILD-ROADMAP.md)"
+MISS=0
+bar() { if [ "$1" = "yes" ]; then echo "  ${C_G}[ HAVE ]${C_0} $2"; else echo "  ${C_R}[ NEED ]${C_0} $2"; MISS=$((MISS+1)); fi; }
+R1=no; [ -f "$CONST" ] && ! grep -qE '<case name>|<date>|<names>' "$CONST" && R1=yes
+bar $R1 "constitution.md filled in - no template placeholders"
+R2=no; [ -n "$S0" ] && ! echo "$S0" | grep -q '<One paragraph.>' && R2=yes
+bar $R2 "Section 0 of spec.md - the slice in your own words"
+NFRSRC=$(rows "$SPEC" FR | awk -F'|' '{c=$3; s=$4; gsub(/[ \t]/,"",c); gsub(/[ \t]/,"",s); if (c!="" && s!="") print}' | wc -l | tr -d ' ')
+R3=no; [ "$NFRSRC" -ge 3 ] && R3=yes
+bar $R3 "At least three requirements with an ID and a source ($NFRSRC now)"
+R4=no; rows "$SPEC" FR | cell 2 | grep -qE '^If .*then the system shall' && R4=yes
+bar $R4 "At least one 'If ... then' requirement"
+R5=no
+if [ -n "${ADR:-}" ] && ! grep -q 'DECISION NEEDED' "$ADR" && ! grep -qiE 'Status: *proposed' "$ADR" && section "$ADR" "## 4." | grep -q '^We will'; then R5=yes; fi
+bar $R5 "Architecture and stack decided - accepted ADR in specs/design/adr/"
+R6=no
+if [ -d "$REPO/.git" ] && git -C "$REPO" rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+  [ "$(git -C "$REPO" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 1)" -eq 0 ] && R6=yes
+fi
+bar $R6 "Committed and pushed to your GitLab project"
+echo
+if [ "$MISS" -eq 0 ]; then echo "  ${C_G}READY${C_0} - you can build the next layer. Finish plan, tasks and trace as you go."
+else echo "  ${C_Y}NOT YET${C_0} - $MISS item(s) above. Close these first: the next layer is built on them."; fi
+[ -f "$PLAN" ] && ! grep -q '<How the slice works' "$PLAN" && echo "  next: plan.md written" || echo "  next: plan.md - /spec-plan (needed before you build)"
+[ "${NT:-0}" -gt 0 ] && echo "  next: tasks.md has $NT task(s)" || echo "  next: tasks.md - /spec-tasks (needed before you build)"
+
 echo
 echo "============================================================"
 echo " ${C_G}ok: $PASS${C_0}   ${C_Y}warnings: $WARN${C_0}   ${C_R}failed: $FAIL${C_0}"

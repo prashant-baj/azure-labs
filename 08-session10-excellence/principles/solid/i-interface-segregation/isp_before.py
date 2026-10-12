@@ -1,0 +1,26 @@
+# BEFORE - one fat interface. The reminder job only READS dues, but to test it you must fake
+# eight methods - and it could, by mistake, call delete_member().
+from abc import ABC, abstractmethod
+
+
+class SocietyRepository(ABC):
+    @abstractmethod
+    def dues_for(self, flat): ...
+    @abstractmethod
+    def payments_for(self, flat): ...
+    @abstractmethod
+    def record_payment(self, flat, amount): ...
+    @abstractmethod
+    def add_member(self, flat, name): ...
+    @abstractmethod
+    def delete_member(self, flat): ...
+    @abstractmethod
+    def export_csv(self): ...
+    @abstractmethod
+    def audit_log(self): ...
+    @abstractmethod
+    def flats(self): ...
+
+
+def flats_with_dues(repo: SocietyRepository):
+    return [f for f in repo.flats() if repo.dues_for(f) > sum(repo.payments_for(f))]

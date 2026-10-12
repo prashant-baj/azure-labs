@@ -1,0 +1,40 @@
+# Engineering rules as checks — Java with Maven (E-003, E-006, E-008, E-010, tests).
+# Copy to the root of your repository as .gitlab-ci.yml, then push.
+# Assumes Spotless and Checkstyle (or PMD) are configured in pom.xml — see templates/engineering-rules.md.
+
+stages: [check, test]
+
+default:
+  tags: [junior-SWAT-engineers-program]
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2"
+
+cache:
+  paths: [.m2/]
+
+lint:
+  stage: check
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn -B -q spotless:check checkstyle:check
+
+secrets:
+  stage: check
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - gitleaks git --redact --no-banner -v .
+
+test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn -B test
+  artifacts:
+    when: always
+    reports:
+      junit: target/surefire-reports/TEST-*.xml

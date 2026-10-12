@@ -1,0 +1,19 @@
+"""What the rule and the use case need from the outside world - and nothing about how (E-004)."""
+from typing import Protocol
+
+from dues.model import Payment, UnmatchedReason
+
+
+class FlatDirectory(Protocol):
+    def exists(self, flat: str) -> bool: ...
+    def flats_paid_by(self, payer: str) -> list[str]: ...
+
+
+class PaymentStore(Protocol):
+    def has(self, bank_reference: str) -> bool: ...
+    def record(self, payment: Payment, flat: str) -> None: ...
+
+
+class UnmatchedList(Protocol):
+    def has(self, bank_reference: str) -> bool: ...
+    def add(self, payment: Payment, reason: UnmatchedReason) -> None: ...
