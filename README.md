@@ -1,6 +1,6 @@
 # azure-labs
 
-Hands-on labs for the MindSprint Junior SWAT Engineering Program 2026, run on the vlabs Azure
+Hands-on labs for the FDE Engineering Program 2026, run on the vlabs Azure
 lab subscription.
 
 | Folder | What it does |
