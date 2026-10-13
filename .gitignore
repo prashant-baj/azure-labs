@@ -13,6 +13,7 @@
 # 07-session09-spec/
 # 08-session10-excellence/
 # 09-session11-12-ai-engineering/
+09a-session12-azure-ai-feature/
 
 # Credentials and local state — never commit these
 fed-cred.json

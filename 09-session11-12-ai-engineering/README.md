@@ -160,6 +160,9 @@ assistant given a theory will happily prove it.
 5. **The eval set is its test.** Clear cases, unclear ones where the right answer is "no
    suggestion", and at least one that tries to give the model instructions.
 
+**Want to see it running on Azure?** `../09a-session12-azure-ai-feature/` is a very small worked
+example: the same five rules, an Azure Function, the key in Key Vault, one script to deploy.
+
 No API key for the product? Build and test everything with the fake, and show the eval set as the
 test you would run. That is a complete layer 3.
 
