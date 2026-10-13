@@ -1,0 +1,38 @@
+# AI review on every push to a merge request - Session 11, layer 3.
+# Included from your .gitlab-ci.yml:   include: [{ local: ci/ai-review.yml }]
+#
+# Needs two masked CI/CD variables (Settings > CI/CD > Variables - masked, NOT protected):
+#   CLAUDE_CODE_OAUTH_TOKEN  from `claude setup-token`, run by one member on their own licence -
+#                            only if their organisation allows it to be used here
+#                            (or ANTHROPIC_API_KEY, if your group has an API key instead)
+#   GITLAB_REVIEW_TOKEN      a project access token, role Reporter or higher, scope "api" -
+#                            so the review can post its findings as threads
+# If either is missing, the job does not run, and the merge request still works.
+#
+# The review never approves and never merges. Each finding is a thread; "All threads must be
+# resolved" means a person has to read and decide every one before the merge.
+
+ai-review:
+  stage: .pre
+  image: node:22
+  tags: [junior-SWAT-engineers-program]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $GITLAB_REVIEW_TOKEN && $CLAUDE_CODE_OAUTH_TOKEN'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $GITLAB_REVIEW_TOKEN && $ANTHROPIC_API_KEY'
+  allow_failure: true            # an AI outage must never block a merge - the people still review
+  timeout: 15m
+  variables:
+    GIT_DEPTH: "0"
+  script:
+    - npm install --global --silent @anthropic-ai/claude-code
+    - git fetch --quiet origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - export REVIEW_BASE="origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - >
+      claude -p "$(cat ci/review-mr.md)"
+      --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*)"
+      --max-turns 30 > ai-review.log
+    - node ci/post-review.mjs ai-review.json
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    paths: [ai-review.json, ai-review.md, ai-review.log]

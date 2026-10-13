@@ -1,0 +1,14 @@
+# The group's pipeline - created by setup-ai-engineering.
+# Add your lint and test jobs from 08-session10-excellence/ci/<your stack>.gitlab-ci.yml below.
+
+include:
+  - local: ci/ai-review.yml
+
+# Keeps the pipeline alive until your real test job is here - delete it when that job is added.
+spec-present:
+  stage: test
+  image: alpine:3.20
+  tags: [junior-SWAT-engineers-program]
+  script:
+    - test -f constitution.md
+    - ls specs

@@ -1,0 +1,12 @@
+# The group's engineering rules, made into checks (E-003, E-010).
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "BLE", "SIM", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
