@@ -1,5 +1,5 @@
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-excellence.ps1  -  Session 10, layer 2: is the code shaped well,
 #                           and did the spec change first?
 #                           (Windows PowerShell 5.1 / PowerShell 7)

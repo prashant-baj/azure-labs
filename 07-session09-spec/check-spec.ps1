@@ -1,5 +1,5 @@
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-spec.ps1  -  Session 9: is this spec one a team could build from?
 #                     (Windows PowerShell 5.1 / PowerShell 7)
 #

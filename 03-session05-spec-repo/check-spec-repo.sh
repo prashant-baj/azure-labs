@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-spec-repo.sh  -  Session 5 solution definition check  (macOS/Linux/WSL)
 #
 #  Checks that a group's case repository is in a state the next three sessions

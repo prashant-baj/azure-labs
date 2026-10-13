@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  connect-gitlab.sh  -  point the case repository at your group's GitLab
 #                         project and push everything  (macOS / Linux / WSL)
 #

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  00-access-check / az-access-check.sh   (macOS / Linux / WSL)
 #
 #  Confirms that the vlabs Azure lab account can be reached from the command

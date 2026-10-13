@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   02-azure-resources-test / run-test.ps1   (Windows)
 
   Runs the whole serverless-stack test in the right order, and prepares this

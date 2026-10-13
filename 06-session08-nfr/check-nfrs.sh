@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-nfrs.sh  -  Session 8 NFR register and constraints  (macOS/Linux/WSL)
 #
 #  Checks that every requirement can be verified and has an owner, and that

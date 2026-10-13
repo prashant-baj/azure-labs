@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   handin.ps1  -  Package a case repository for hand-in  (Windows PowerShell)
 
   For groups who cannot push to a remote yet. Produces ONE file containing the

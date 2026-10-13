@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   check-prereqs.ps1  -  Local toolchain readiness check  (Windows / PowerShell)
 
   Verifies the tools the Azure labs need are installed locally and are a

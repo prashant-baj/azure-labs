@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   check-spec-repo.ps1  -  Session 5 solution definition check  (PowerShell)
 
   Checks that a group's case repository is in a state the next three sessions

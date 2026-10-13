@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  setup-excellence.sh  -  Session 10: add the layer 2 templates, commands and
 #                           merge request checklist to your case repository
 #                           (macOS / Linux / WSL)

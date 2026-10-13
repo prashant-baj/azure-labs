@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-prereqs.sh  -  Local toolchain readiness check  (macOS / Linux / WSL)
 #
 #  Verifies the tools the Azure labs need are installed locally and are a

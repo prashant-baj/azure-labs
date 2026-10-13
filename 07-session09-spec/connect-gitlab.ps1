@@ -1,5 +1,5 @@
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  connect-gitlab.ps1  -  point the case repository at your group's GitLab
 #                          project and push everything  (Windows)
 #

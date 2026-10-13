@@ -1,5 +1,5 @@
 <#
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   check-contracts.ps1  -  Session 7 contracts and ADRs  (PowerShell)
   USAGE:  ./check-contracts.ps1 -Path "C:\work\group-1"
   A bash twin (check-contracts.sh) exists for macOS / Linux / WSL.

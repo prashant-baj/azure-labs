@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   tools/fix-company-proxy.ps1   (Windows)
 
   Makes the Azure CLI, Git and Node/npm work on a company network that

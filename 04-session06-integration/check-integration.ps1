@@ -1,5 +1,5 @@
 <#
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   check-integration.ps1  -  Session 6 integration decisions  (PowerShell)
   USAGE:  ./check-integration.ps1 -Path "C:\work\group-1"
   A bash twin (check-integration.sh) exists for macOS / Linux / WSL.

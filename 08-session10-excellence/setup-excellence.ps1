@@ -1,5 +1,5 @@
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  setup-excellence.ps1  -  Session 10: add the layer 2 templates, commands and
 #                            merge request checklist to your case repository
 #                            (Windows PowerShell 5.1 / PowerShell 7)

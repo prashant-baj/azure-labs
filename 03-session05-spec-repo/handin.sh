@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  handin.sh  -  Package a case repository for hand-in  (macOS / Linux / WSL)
 #
 #  For groups who cannot push to a remote yet. Produces ONE file containing the

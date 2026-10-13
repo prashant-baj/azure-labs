@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  tools/fix-company-proxy.sh   (macOS / Linux / WSL)
 #
 #  Makes the Azure CLI, Git and Node/npm work on a company network that

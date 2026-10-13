@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-excellence.sh  -  Session 10, layer 2: is the code shaped well,
 #                          and did the spec change first?   (macOS / Linux / WSL)
 #

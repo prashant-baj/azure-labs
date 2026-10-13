@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  02-azure-resources-test / run-test.sh   (macOS / Linux / WSL)
 #
 #  Runs the whole serverless-stack test in the right order, and prepares this

@@ -1,5 +1,5 @@
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  organise-specs.ps1  -  Session 9: put the case repository into four layers
 #                         (Windows PowerShell 5.1 / PowerShell 7)
 #

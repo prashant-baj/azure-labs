@@ -1,6 +1,6 @@
 <#
 =============================================================================
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   new-case-repo.ps1  -  Create a group's case repository  (Windows PowerShell)
 
   Copies the Session 5 template into a new folder, initialises git and makes

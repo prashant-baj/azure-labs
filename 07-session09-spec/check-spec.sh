@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-spec.sh  -  Session 9: is this spec one a team could build from?
 #                    (macOS / Linux / WSL)
 #

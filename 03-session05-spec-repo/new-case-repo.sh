@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  new-case-repo.sh  -  Create a group's case repository  (macOS / Linux / WSL)
 #
 #  Copies the Session 5 template into a new folder, initialises git and makes

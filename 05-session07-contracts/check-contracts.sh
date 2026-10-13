@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MindSprint Junior SWAT Engineering Program 2026 - Labs
+#  FDE Program 2026 - Labs
 #  check-contracts.sh  -  Session 7 contracts and ADRs  (macOS / Linux / WSL)
 #
 #  Checks the things a drafted contract always gets wrong, and that your ADRs

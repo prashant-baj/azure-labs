@@ -1,5 +1,5 @@
 <#
-  MindSprint Junior SWAT Engineering Program 2026 - Labs
+  FDE Program 2026 - Labs
   check-nfrs.ps1  -  Session 8 NFR register and constraints  (PowerShell)
   USAGE:  ./check-nfrs.ps1 -Path "C:\work\group-1"
   A bash twin (check-nfrs.sh) exists for macOS / Linux / WSL.
