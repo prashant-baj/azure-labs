@@ -79,14 +79,25 @@ Do not paste it into chat, a file or a screenshot.
 from this GitLab? If you do not know, **skip this step** and use *the laptop route* (Part 5) until
 you do. Nobody is behind for following their employer's rules.
 
-If it is allowed, the token owner runs this on **their own laptop**:
+**Who can make one:** a member whose Claude Code signs in with a Claude **Pro, Max, Team or
+Enterprise** account — the organisation licence you were given counts. If your organisation runs
+Claude Code through Bedrock, Vertex AI, Microsoft Foundry or Console API keys instead, this command
+is not for you — use the laptop route (Part 5).
+
+If it is allowed, the token owner runs this on **their own laptop**, in any terminal where `claude`
+works:
 
 ```bash
 claude setup-token
 ```
 
-A browser opens; sign in with the organisation account and approve. The terminal prints a long
-token (it starts with `sk-ant-oat`). Copy it — it goes into step 1.6 and nowhere else.
+1. A browser opens (no browser? press `c` to copy the link and open it yourself).
+2. Sign in with the **organisation account** — the same one `/status` shows in Claude Code — and approve.
+3. The terminal prints a long token. **It is shown once and not saved anywhere** — copy it straight
+   into step 1.6. Close the terminal afterwards.
+
+The token is valid for **one year**, works only for running Claude (inference), and every review
+it runs counts against **that person's** licence usage. One member per group is enough.
 
 > This is **not** an API key for a product, and it never goes into `.env`, a file, or a product's
 > CI variable. It lets the pipeline run Claude Code as that person for the review only.
@@ -296,6 +307,8 @@ Remove-Item Env:GITLAB_REVIEW_TOKEN          # do not leave the token in the ses
 | `CLAUDE_CODE_OAUTH_TOKEN` · `GITLAB_REVIEW_TOKEN` | Masked CI/CD variables | In a file, a commit, a chat or a screenshot |
 | Your Azure sign-in and Terraform state | Your laptop | Committed |
 
-If a token is ever pasted somewhere it should not be: **revoke it first** (*Access tokens → Revoke*,
-or run `claude setup-token` again to replace it), then clean up. `check-ai-engineering` fails if it
+If a token is ever pasted somewhere it should not be, act first and clean up second:
+`GITLAB_REVIEW_TOKEN` — *Access tokens → Revoke*. `CLAUDE_CODE_OAUTH_TOKEN` — delete the CI variable
+and tell your organisation's Claude admin straight away, so they can revoke it; making a new token does
+**not** cancel the old one. `check-ai-engineering` fails if it
 finds one committed.
