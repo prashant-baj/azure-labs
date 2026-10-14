@@ -90,10 +90,10 @@ $gi = Join-Path $Repo ".gitignore"; if (-not (Test-Path $gi)) { New-Item -ItemTy
 $raw = Get-Content -Raw $gi -ErrorAction SilentlyContinue
 if ($raw -and -not $raw.EndsWith("`n")) { Add-Content -Path $gi -Value "" -NoNewline; Add-Content -Path $gi -Value "" }
 $giLines = @(Get-Content $gi -ErrorAction SilentlyContinue)
-foreach ($line in @('*.tfstate','*.tfstate.*','.terraform/','*.tfvars','!*.tfvars.example','.env')) {
+foreach ($line in @('*.tfstate','*.tfstate.*','.terraform/','*.tfvars','!*.tfvars.example','.env','ai-review.json','ai-review.md','ai-review.log')) {
   if ($giLines -notcontains $line) { Add-Content -Path $gi -Value $line }
 }
-Ok ".gitignore keeps Terraform state, .terraform/, *.tfvars and .env out of git"
+Ok ".gitignore keeps Terraform state, .terraform/, *.tfvars, .env and local AI review files out of git"
 
 Hdr "4 - CLAUDE.md"
 $claude = Join-Path $Repo "CLAUDE.md"

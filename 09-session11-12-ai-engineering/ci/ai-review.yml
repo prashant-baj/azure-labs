@@ -9,6 +9,10 @@
 #                            so the review can post its findings as threads
 # If either is missing, the job does not run, and the merge request still works.
 #
+# It runs in the BRANCH pipeline of a branch that has an open merge request - next to your lint and
+# test jobs. (A merge-request pipeline holding only this .pre job would not start at all.)
+# The very first push that creates the merge request may race it: push again, or an empty commit.
+#
 # The review never approves and never merges. Each finding is a thread; "All threads must be
 # resolved" means a person has to read and decide every one before the merge.
 
@@ -17,16 +21,21 @@ ai-review:
   image: node:22
   tags: [junior-SWAT-engineers-program]
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $GITLAB_REVIEW_TOKEN && $CLAUDE_CODE_OAUTH_TOKEN'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $GITLAB_REVIEW_TOKEN && $ANTHROPIC_API_KEY'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $GITLAB_REVIEW_TOKEN && $CLAUDE_CODE_OAUTH_TOKEN'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $GITLAB_REVIEW_TOKEN && $ANTHROPIC_API_KEY'
   allow_failure: true            # an AI outage must never block a merge - the people still review
   timeout: 15m
   variables:
     GIT_DEPTH: "0"
   script:
     - npm install --global --silent @anthropic-ai/claude-code
-    - git fetch --quiet origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-    - export REVIEW_BASE="origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - export MR_IID="${CI_OPEN_MERGE_REQUESTS%%,*}"; export MR_IID="${MR_IID##*!}"   # "group/project!12" -> 12
+    - export TARGET="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-$CI_DEFAULT_BRANCH}"
+    - echo "Reviewing merge request !$MR_IID against $TARGET"
+    - git fetch --quiet origin "$TARGET"
+    - export REVIEW_BASE="origin/$TARGET"
     - >
       claude -p "$(cat ci/review-mr.md)"
       --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*)"

@@ -77,10 +77,10 @@ add "$HERE/../lab-constraints.md" "$REPO/specs/design/azure-lab-constraints.md" 
 mkdir -p "$REPO/.claude/infra-starter"; for f in "$HERE"/infra-starter/*; do add "$f" "$REPO/.claude/infra-starter/$(basename "$f")"; done   # the known-good Terraform shape /azure-terraform starts from
 GI="$REPO/.gitignore"; touch "$GI"
 [ -s "$GI" ] && [ -n "$(tail -c1 "$GI")" ] && echo >> "$GI"   # end the last line first
-for line in '*.tfstate' '*.tfstate.*' '.terraform/' '*.tfvars' '!*.tfvars.example' '.env'; do
+for line in '*.tfstate' '*.tfstate.*' '.terraform/' '*.tfvars' '!*.tfvars.example' '.env' 'ai-review.json' 'ai-review.md' 'ai-review.log'; do
   grep -qxF "$line" "$GI" || echo "$line" >> "$GI"
 done
-ok ".gitignore keeps Terraform state, .terraform/, *.tfvars and .env out of git"
+ok ".gitignore keeps Terraform state, .terraform/, *.tfvars, .env and local AI review files out of git"
 
 hdr "4 · CLAUDE.md"
 if [ -f "$REPO/CLAUDE.md" ] && grep -q '^## Layer 3' "$REPO/CLAUDE.md"; then ok "CLAUDE.md already has the layer-3 section"

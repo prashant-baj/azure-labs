@@ -29,24 +29,29 @@ from a tag, not from a laptop.
 
 ## Part A · Set up (once per group, at the start of Session 11)
 
-**1. Add the layer-3 files** — one person runs it, everyone else pulls:
+> **Step by step, with who clicks what in GitLab: [`SETUP-GATE.md`](SETUP-GATE.md).** The short
+> version is below.
+
+**1. Add the layer-3 files** — one person runs it, on a new branch; everyone else pulls later:
 
 ```bash
+git -C ~/work/group-1 switch main && git -C ~/work/group-1 pull
+git -C ~/work/group-1 switch -c setup/layer-3
 cd path/to/azure-labs/09-session11-12-ai-engineering
 chmod +x *.sh                                          # first time only
 ./setup-ai-engineering.sh ~/work/group-1
-git -C ~/work/group-1 switch -c setup/layer-3
 git -C ~/work/group-1 push -u origin setup/layer-3 -o merge_request.create -o merge_request.target=main
 ```
 ```powershell
-./setup-ai-engineering.ps1 -Path "C:\work\group-1"
+git -C "C:\work\group-1" switch main; git -C "C:\work\group-1" pull
 git -C "C:\work\group-1" switch -c setup/layer-3
+./setup-ai-engineering.ps1 -Path "C:\work\group-1"
 git -C "C:\work\group-1" push -u origin setup/layer-3 -o merge_request.create -o merge_request.target=main
 ```
 
-It adds the AI review job (`ci/ai-review.yml`), the nine layer-3 commands, templates, the Azure lab
-constraints (`specs/design/azure-lab-constraints.md`), Terraform lines in `.gitignore` and the
-CLAUDE.md section, and makes **one commit**. It never overwrites a file you wrote.
+It adds the AI review job (`ci/ai-review.yml`), the ten layer-3 commands, templates, the Azure lab
+constraints (`specs/design/azure-lab-constraints.md`), the Terraform starter, `.gitignore` lines and
+the CLAUDE.md section, and makes **one commit**. It never overwrites a file you wrote.
 
 **2. Give the pipeline its two variables** — your group's **Maintainer** does this, in GitLab:
 *Settings → CI/CD → Variables → Add variable.* Tick **Masked**. Do **not** tick *Protected* —
@@ -57,8 +62,12 @@ protected variables are hidden from feature branches, and the review would silen
 | `CLAUDE_CODE_OAUTH_TOKEN` | Lets the pipeline run Claude Code as one of you | That person runs `claude setup-token` on their laptop and pastes the token. **Only if your organisation allows its licence to be used on this GitLab.** If you are not sure, ask first — and use the laptop route below until you know |
 | `GITLAB_REVIEW_TOKEN` | Lets the review post its findings as threads | *Settings → Access tokens* → role **Developer**, scope **api**, expiry the last day of the programme |
 
-**3. Watch it work** on the setup merge request: the pipeline runs, the AI review posts its
-findings as threads. A groupmate reads them, resolves them, and merges.
+**3. Gate settings** (Maintainer): protect `main` (Developers may merge, nobody pushes) and tick
+*Pipelines must succeed* and *All threads must be resolved* — `SETUP-GATE.md` 1.1–1.2.
+
+**4. Watch it work** on the setup merge request: once the variables are in, push an empty commit
+(`git commit --allow-empty -m "ci: run the AI review" && git push`). The AI review posts its findings
+as threads. The author answers each; a groupmate approves and merges.
 
 **No token for the pipeline?** The review still happens — on a laptop. Run `/review-mr` in Claude
 Code, then post its findings with a personal access token (scope `api`):
