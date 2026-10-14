@@ -28,9 +28,6 @@ class SqliteFlats:
     def flats_paid_by(self, payer: str) -> list[str]:
         return [row[0] for row in self._db.execute("select flat from flats where payer = ?", (payer,))]
 
-    def all_flats(self) -> list[str]:
-        return [row[0] for row in self._db.execute("select distinct flat from flats order by flat")]
-
 
 class SqlitePayments:
     def __init__(self, db: sqlite3.Connection):

@@ -2,14 +2,16 @@
 
 Layer 1 said **what** to build. Layer 2 gave the code a **shape**. Layer 3 builds the rest of the
 slice so that it works end to end — with the assistant in every part of the loop: planning,
-building, debugging, documenting and reviewing. And in Session 12 you add one AI-assisted feature
-to the product itself.
+building, debugging, documenting and reviewing. Session 11 has the talks and the task loop.
+**Session 12 is one long workshop:** check what the assistant wrote, turn it on your **spec** to find
+the gaps, and **deploy your work in progress to Azure with Terraform, from the command line** —
+without losing ownership.
 
 Two promises hold for both sessions:
 
 1. **You own every line.** The assistant plans, writes, reviews and explains. People approve the
    plan, read the diff, decide every review finding, and merge.
-2. **The AI suggests; a person decides** — in the way you build, and in the product you build.
+2. **The AI suggests; a person decides** — about the code, and about the spec.
 
 See [`../BUILD-ROADMAP.md`](../BUILD-ROADMAP.md) for where this layer sits. Tag at the end of
 Session 12: **`L3-working`**.
@@ -42,7 +44,8 @@ git -C "C:\work\group-1" switch -c setup/layer-3
 git -C "C:\work\group-1" push -u origin setup/layer-3 -o merge_request.create -o merge_request.target=main
 ```
 
-It adds the AI review job (`ci/ai-review.yml`), the seven layer-3 commands, templates and the
+It adds the AI review job (`ci/ai-review.yml`), the nine layer-3 commands, templates, the Azure lab
+constraints (`specs/design/azure-lab-constraints.md`), Terraform lines in `.gitignore` and the
 CLAUDE.md section, and makes **one commit**. It never overwrites a file you wrote.
 
 **2. Give the pipeline its two variables** — your group's **Maintainer** does this, in GitLab:
@@ -71,7 +74,7 @@ GITLAB_REVIEW_TOKEN=<your token> node ci/post-review.mjs ai-review.json
 |---|---|---|
 | Your Claude Code login | You, on your laptop | On your laptop. Nowhere else |
 | `CLAUDE_CODE_OAUTH_TOKEN` | The pipeline's AI review | A masked CI/CD variable. Never in a file |
-| An API key for the **product's** AI feature (Session 12) | Your running application | The environment (`.env`, not committed). A Claude Code login token is for the coding tool — not for running a product |
+| Your Azure sign-in and Terraform state | You and `terraform`, on your laptop | On your laptop. State files can hold secrets — never committed |
 
 `check-ai-engineering` **fails** if any of them is committed. If one ever is: revoke it first,
 then remove it. Removing it from the file does not remove it from history.
@@ -82,9 +85,11 @@ then remove it. Removing it from the file does not remove it from history.
 |---|---|---|---|
 | 1 | **Set up and see it work** | 15 min | Part A. Merge the setup merge request through the gate |
 | 2 | **Pair up, pick tasks** | 5 min | Pairs take the next tasks from `tasks.md`, the rule and the failure paths first |
-| 3 | **The task loop — twice** | 35 min | For each task: plan → approve → build → read the diff → commit → push → review → merge (below) |
-| 4 | **Bug drill** | 10 min | A real failure from step 3 — or the drill in `examples/society-dues/bug-drill/`. `/debug-evidence` |
-| 5 | **Docs and trace** | 5 min | README "How to run" still true? `/spec-trace` — which requirements now have code and tests? |
+| 3 | **The task loop — twice** | 30 min | For each task: plan → approve → build → read the diff → commit → push → review → merge (below) |
+| 4 | **Azure — find the gaps** | 15 min | `/azure-gaps specs/001-…`. Answer its questions **as a group**. Commit `specs/design/azure-gaps.md` |
+| 5 | **Push and check** | 5 min | Push every branch. `check-ai-engineering`. Make sure `az`, `terraform` and Docker work on at least two laptops — Session 12 deploys |
+
+The bug drill and the docs-and-trace step are homework this time (below).
 
 ### The task loop
 
@@ -130,14 +135,63 @@ Reproduce it. Quote the real error. Prove one cause with the smallest experiment
 fails because of the bug. Then the smallest fix. **Paste the evidence, not your theory** — an
 assistant given a theory will happily prove it.
 
-## Part C · Session 12 — validate it, then add the AI feature
+### The Azure step — gaps first, then Terraform
+
+Your specs say *what* to build. Azure needs to know *where it runs, what it keeps, who may touch it,
+and what happens when it fails* — and the lab only allows some of that. Find the gaps **before**
+writing infrastructure.
+
+```text
+/azure-gaps specs/001-…          # reads your specs + the lab policy, then asks you pointed questions
+/azure-terraform specs/001-…     # asks about your component, then writes infra/ - you run apply
+```
+
+| `/azure-gaps` gives you | `/azure-terraform` gives you |
+|---|---|
+| A resource map: every Azure resource your plan implies, checked against the lab policy | `infra/` — versions, variables (validated region), main, outputs, an example `.tfvars`, a README |
+| Every gap classified: undecided · policy conflict · requirement with no resource · resource with no requirement · security · operability · cost | One running component on **Container Apps** (with a registry and logs), plus a data store only if you need one on day one |
+| Up to eight questions, one at a time, each quoting your spec — **you answer** | The exact commands: `init → fmt → validate → plan → apply`, build and push the image, `curl /health`, `destroy` |
+
+```bash
+cd infra && terraform init && terraform fmt && terraform validate
+terraform plan -out tfplan        # a person reads it - what will be created, and why?
+terraform apply tfplan
+```
+
+**Lab rules the commands follow** (from `specs/design/azure-lab-constraints.md`): `eastus` by default;
+Container Apps, not App Service or Functions (no quota); no Azure OpenAI; no role assignments (ACR
+admin credentials, Key Vault access policies); everything re-creatable — the lab is cleaned about
+every four hours. **Never commit** `*.tfstate`, `.terraform/` or `*.tfvars` — `check-ai-engineering`
+**fails** if you do. Key Vault with managed identity and deploying from the pipeline come in
+Sessions 16–17.
+
+## Part C · Session 12 — one long workshop: trust it, sharpen the spec, ship it
 
 | # | Step | Time | Do this |
 |---|---|---|---|
 | 1 | **Validate** | 20 min | `/validate-ai-code specs/001-…` from `L2-design`. It runs your tools and looks through four lenses. **Decide every finding.** The *must*s become merge requests |
-| 2 | **Spec the AI feature** | 15 min | `/spec-ai-feature specs/001-… "<what the AI should help with>"`. Answer its three questions as a group. Eval set from the evidence. Merge the spec change first |
-| 3 | **Build it behind a port** | 25 min | `/build-ai-feature specs/001-…`. Every guardrail tested with a fake. The real adapter only by configuration |
-| 4 | **Merge and tag** | 10 min | Through the gate. Tag `L3-working` on `main`. Run `check-ai-engineering` |
+| 2 | **Strengthen the spec** | 20 min | `/spec-review specs/001-…` — or the prompts in `prompts/spec-enhancement.md`. **Answer its questions as a group.** Apply only the changes you decided |
+| 3 | **Deploy to Azure** | 45 min | **[`DEPLOY-EXERCISE.md`](DEPLOY-EXERCISE.md)** — `/azure-terraform`, then `init → plan → apply` from the CLI, your own image on your own URL, a change and a rollback. **The team decides who runs apply** |
+| 4 | **Spec and code in step** | 10 min | `/spec-sync specs/001-…`. Requirements with no test, code with no requirement, behaviour the spec never mentions. Decide each |
+| 5 | **Merge and tag** | 10 min | Through the gate. Tag `L3-working` on `main`. Run `check-ai-engineering` |
+
+`/improve-component` is there when you have time left — or as homework.
+
+### Deploying to Azure — the short version
+
+```bash
+/azure-terraform specs/001-…                    # writes infra/ (from .claude/infra-starter/) - read it
+cd infra && terraform init && terraform validate
+terraform plan -var prefix=<group> -out tfplan  # a person reads it out loud
+terraform apply tfplan                          # the person the team chose
+# your image: docker build --platform linux/amd64 + push   (or az acr build)
+terraform plan -var prefix=<group> -var image=<acr>/<app>:v1 -var target_port=<port> -out tfplan
+terraform apply tfplan && curl -s $(terraform output -raw app_url)/health
+```
+
+Six checkpoints, the plan-reading questions, and a troubleshooting table: **`DEPLOY-EXERCISE.md`**.
+The known-good Terraform is in `infra-starter/`; a stand-in app (if yours cannot run yet) is in
+`sample-app/`. Log every apply in `infra/deployments.md`.
 
 ### The four lenses
 
@@ -148,23 +202,32 @@ assistant given a theory will happily prove it.
 | **Maintainability** | The engineering rules, the direction rule, code no task asked for |
 | **Compliance** | The C- rules — nothing deleted that must be kept, no data where it must not go, no library without an ADR |
 
-### The AI feature — five rules
+### Prompts that strengthen the spec
 
-1. **The AI suggests; a person decides.** No suggestion changes a record until someone accepts it,
-   and the record says who.
-2. **Spec first.** Requirements, *If* rows (AI down; answer not allowed; instructions in the input),
-   a data rule for what may leave the system, and an eval set from the evidence.
-3. **Behind a port.** Only one file knows a model exists. Everything else is tested with a fake.
-4. **Never trust the answer.** Anything outside the allowed values is thrown away. A failure means
-   "no suggestion", not a crash.
-5. **The eval set is its test.** Clear cases, unclear ones where the right answer is "no
-   suggestion", and at least one that tries to give the model instructions.
+The assistant is a sharp reviewer, not the author. Ask it to **attack** the spec and **ask** — then
+decide as a group.
 
-**Want to see it running on Azure?** `../09a-session12-azure-ai-feature/` is a very small worked
-example: the same five rules, an Azure Function, the key in Key Vault, one script to deploy.
+| Ask it to find | You get | Who decides |
+|---|---|---|
+| **Ambiguity** — *quickly, easily, appropriate, real-time* | The line, why a tester cannot check it, one question | The group — or the client |
+| **Untestable requirements** | An EARS rewrite proposed side by side — not applied | The group |
+| **Missing failure paths** | The *If* rows a happy path is missing: late, duplicate, malformed, the other system down | The group, with the client |
+| **Edge-case examples** | Inputs at the edges, with the expected result left as `???` | The client |
+| **Conflicts** | Two lines that cannot both be true — quoted, no winner picked | The group |
+| **Evidence not covered** | What a stakeholder said that no requirement covers | The group: this slice, later, or out |
+| **Drift** | Spec vs tasks vs tests vs code | The group: spec change, code fix or debt |
 
-No API key for the product? Build and test everything with the fake, and show the eval set as the
-test you would run. That is a complete layer 3.
+`/spec-review` and `/spec-sync` do this with your files. `prompts/spec-enhancement.md` has the same
+ten prompts to copy into any assistant. Every finding goes into `reviews/spec-review.md`; every
+decided change gets a change-log row in `spec.md`. **Never let the assistant invent a number, a rule
+or a client decision** — that is what `[NEEDS CLARIFICATION]` is for.
+
+### Improving a component
+
+Measure first (tests, linter, complexity — real output) → up to three proposals, each tied to a rule
+or NFR → the group picks **one** → pin the behaviour with a test → the smallest change → every test
+passes **unedited** → before and after, in the merge request. If the improvement would change what
+the client sees, stop: that is a spec change first.
 
 ## Part D · Check your work
 
@@ -179,20 +242,21 @@ test you would run. That is a complete layer 3.
 |---|---|
 | AI review in the pipeline; a test job with a junit report | The gate needs both |
 | No token or key committed | **Fails** if found — revoke first, then remove |
+| `azure-gaps.md`; Terraform in `infra/`; no state, `.terraform/` or `.tfvars` committed | Gaps asked before infrastructure; state can hold secrets — **fails** if committed |
+| At least one apply logged in `infra/deployments.md` | Your work in progress ran on Azure, from code |
 | Merges in layer 3; code commits name tasks; tasks ticked | Work arrives task by task, through the gate |
 | README and `trace.md` changed in layer 3 | Docs move with the code |
-| Eval set: six examples or more, a guardrail example, every example sourced | The AI feature's rule examples |
-| *If* rows in the spec; a fake in the tests; `.env.example` | Guardrails, tested without a model |
+| `reviews/spec-review.md`: findings of several kinds, every one decided; `spec.md` changed in layer 3 | The spec got stronger — and people decided how |
+| *If* rows in the spec; open `NEEDS CLARIFICATION` items | Failure paths written; open questions visible, with who will answer |
 | Validation: four lenses, real tool results, every finding decided | People decide |
 | Tag `L3-working` | Layer 4 starts from it |
 
 ## The worked example
 
 `examples/society-dues/` — the same invented society. A prompt card that stopped a bad plan; a bug
-the tests did not catch; the AI feature written as requirements first; the suggester behind a port
-with every guardrail tested by a fake; an eval set with an example that tries to instruct the model;
-and a validation that caught the first draft deleting records and sending a payer's name out. Read it
-**after** your own attempt.
+the tests did not catch; a validation that caught the first draft deleting records; and a spec
+review that found an untestable requirement, a missing failure path and a rule with no edge
+examples — with the group's decisions. Read it **after** your own attempt.
 
 ```bash
 cd examples/society-dues/code && pip install -r requirements.txt && python -m pytest -q
@@ -200,8 +264,13 @@ cd examples/society-dues/code && pip install -r requirements.txt && python -m py
 
 ## Homework
 
-**After Session 11 (reading only, twenty minutes):** your own merge requests — which AI review
-thread did you overrule, and would you still? Then `examples/society-dues/prompt-card-T010.md`.
+**After Session 11 (about forty minutes):** the bug drill in `examples/society-dues/bug-drill/` with
+`/debug-evidence`; your README "How to run" and `/spec-trace`; your own merge requests — which AI
+review thread did you overrule, and would you still? **Before Session 12:** `az login`,
+`terraform -version` and `docker info` work on the laptop your team will deploy from (see
+*Before you start* in `DEPLOY-EXERCISE.md`). If your component has no `Dockerfile`, ask the assistant
+for a minimal one — and read it.
 
-**After Session 12 (reading only, twenty minutes):** your validation and eval set. Which eval example
-are you least sure about — and who in the client's team could tell you the right answer?
+**After Session 12 (reading only, twenty minutes):** your spec review. Which finding did you keep
+"as is" — and would the client agree? Send the open `NEEDS CLARIFICATION` questions to the person
+who can answer them.

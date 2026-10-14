@@ -1,19 +1,17 @@
 # Worked example — layer 3 for the society dues slice
 
 The same invented housing society. Layer 2 left clean code for the rule. Layer 3 builds the rest
-of the slice with the assistant (Session 11) and adds one AI-assisted feature — suggesting a flat
-for an unmatched payment, with the treasurer deciding (Session 12).
+of the slice with the assistant (Session 11), then checks every AI-written line and uses the
+assistant to make the **spec** sharper (Session 12).
 
 | Look at | Session | Notice |
 |---|---|---|
 | `prompt-card-T010.md` | 11 | Context, task, limits, done-when, ask-first. And the plan that was stopped before any code |
 | `bug-drill/` | 11 | A bug the tests do not catch. Evidence first, the missing test second, the fix last |
-| `spec-additions.md` | 12 | The AI feature written as requirements first — *If* rows, a data rule (C-004), and an eval set |
-| `code/dues/suggestion.py` | 12 | The model sits behind a port. The rest of the code does not know a model exists |
-| `code/dues/suggest_for_unmatched.py` | 12 | Never trust the output: a flat outside the directory is thrown away |
-| `code/tests/test_suggestion.py` | 12 | Our guardrails tested with a fake — no key, no network, no cost |
-| `code/eval/` | 12 | The eval set — the AI feature's rule examples — and a runner that needs a real key |
-| `L3-validation.md` | 12 | Four lenses. The first draft deleted records and sent a payer's name out — both caught |
+| `spec-review.md` | 12 | `/spec-review` found eight things. The group changed four, kept two with a reason, and asked the client two. Read *What the assistant got wrong* |
+| `code/dues/match_by_hand.py` | 12 | FR-009 and FR-010 — requirements the spec review found missing, built after the spec changed |
+| `code/tests/test_match_by_hand.py` | 12 | Each new requirement has its test, named after it |
+| `L3-validation.md` | 12 | Four lenses. The first draft deleted records and accepted a flat that does not exist — both caught |
 
 Run it (Python 3.10 or later):
 
@@ -21,9 +19,8 @@ Run it (Python 3.10 or later):
 cd code
 pip install -r requirements.txt
 python -m pytest -q && ruff check .
-python -m eval.run_eval          # skipped unless ANTHROPIC_API_KEY and SUGGESTER_MODEL are set
 ```
 
-The real suggester needs an **API key** for the product — not the Claude Code login your
-organisation gave you for the coding tool. If your group has no such key, demo the feature with
-the fake suggester and show the eval set as the test you would run.
+**The order matters.** Spec review first, then the code. The two rows that `/validate-ai-code`
+marked *must* were already requirements by then — the code was catching up with the spec, which is
+the way round it should be.

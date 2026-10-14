@@ -9,10 +9,16 @@
   test that would have caught it (`/debug-evidence`).
 - **Reviews never decide.** `/review-mr` and the pipeline's AI review write findings with a rule ID
   and a place. People decide each one and resolve the thread. Never approve or merge.
-- **AI inside the product** suggests; a person decides. The model sits behind a port. Only the data
-  the C- rule allows leaves the system. Every answer is checked against the allowed values.
-- A product's model key is an API key from the environment — never a Claude Code login token, and
-  never in the repository.
+- **The spec is reviewed, not rewritten.** `/spec-review` and `/spec-sync` find and ask; the group
+  decides every change. Never edit `spec.md` without showing the diff and getting a yes. Never invent a
+  number, rule or client decision — write `[NEEDS CLARIFICATION]`.
+- **Improve with evidence.** Measure first, one improvement at a time, behaviour pinned by tests that
+  pass without being edited (`/improve-component`).
+- **Azure:** follow `specs/design/azure-lab-constraints.md`. Infrastructure is Terraform in `infra/`.
+  Never write a secret value into a `.tf`/`.tfvars` file; never commit state; never run `apply` or
+  `destroy` yourself — show the plan, a person applies.
+- Your Claude Code login is for the coding tool only — never in the repository, a `.env` file or a CI
+  variable for the product.
 
 ### Commands (layer 3)
 
@@ -22,6 +28,9 @@
 | `/task-build <slice> <T0xx>` | Builds the approved plan, test first, docs in the same change. Does not commit |
 | `/debug-evidence <symptom>` | Reproduce, evidence, hypotheses, proof, the missing test, the smallest fix |
 | `/review-mr [base]` | The pipeline's review, run locally. Writes `ai-review.json` and `ai-review.md` |
+| `/azure-gaps <slice>` | Maps the resources your specs need against the lab policy; asks pointed questions; writes `specs/design/azure-gaps.md` |
+| `/azure-terraform <slice>` | Asks about your component, then writes `infra/` from `.claude/infra-starter/` (Container Apps). The person the team chose runs `apply`; every apply is logged in `infra/deployments.md` |
 | `/validate-ai-code <slice>` | Four lenses — correctness, security, maintainability, compliance — with real tool results |
-| `/spec-ai-feature <slice> <idea>` | Writes the AI feature into the spec first: FR, If rows, data rule, eval set |
-| `/build-ai-feature <slice>` | Builds it behind a port: fake for tests, real adapter by config, guardrails tested |
+| `/spec-review <slice>` | Attacks the spec: ambiguity, untestable lines, missing If rows, conflicts, no source; asks the group; writes `reviews/spec-review.md` |
+| `/spec-sync <slice> [base]` | Finds drift between spec, tasks, tests and code; the group decides spec change, code fix or debt |
+| `/improve-component <slice> <component>` | Measures, proposes up to three improvements, makes the one the group picks — tests unedited |

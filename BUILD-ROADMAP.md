@@ -25,7 +25,7 @@ The spec changes first. If the code moves and the spec does not, the layer is no
 |---|---|---|---|---|---|---|
 | 1 | 9 · Specification-driven Engineering | **Know what to build** | Constitution, slice spec, architecture-and-stack ADR, plan, tasks | Specs only — no code | `spec-001-v1` | "Every requirement traces back to what the client told us" |
 | 2 | 10 · Engineering Excellence Practices | **Shape it well** | The components of the slice, drawn as code in the plan. Clean code and design principles added to the constitution as rules | A first version of the code, then reviewed and refactored against those rules | `L2-design` | "Clean structure — and the rules it follows" |
-| 3 | 11–12 · AI-assisted Software Engineering | **Make it work** | One AI-assisted capability, written as requirements with its own *If* rows and limits | The slice built task by task, through merge requests. AI reviews every MR; a person approves | `L3-working` | "It works end to end — and a human checks what the AI does" |
+| 3 | 11–12 · AI-assisted Software Engineering | **Make it work** | The spec strengthened with AI — gaps, untestable lines and missing *If* rows found; every change decided by the group | The slice built task by task, through merge requests. AI reviews every MR; a person approves. The work in progress deployed to Azure with Terraform, from the CLI | `L3-working` | "It works end to end — and a human checks what the AI does" |
 | — | 23 Oct · Mid-point check-in | *Show the business* | — | — | — | First demo of what is working |
 | 4 | 13 · Quality-first Engineering | **Prove the behaviour** | User stories and acceptance criteria; executable scenarios (Gherkin) tagged with requirement IDs | Scenarios that pass; the rule built test-first | `L4-behaviour` | "The spec runs — as tests" |
 | 5 | 14–15 · Modern Testing & Automation | **Automate the confidence** | A test strategy for the whole system, in the design record | Unit, integration, API and end-to-end tests; regression in the pipeline; AI-suggested tests, reviewed | `L5-tested` | "Every change is tested before it merges" |
@@ -43,7 +43,7 @@ If every layer is in place, the demo tells itself, in the same order you built i
 1. **The problem** — what the client told you, from `docs/`.
 2. **The spec** — one slice, requirements with IDs and sources.
 3. **The design** — components, principles, the stack and why.
-4. **It works** — the slice, end to end, including the AI-assisted part.
+4. **It works** — the slice, end to end, and the spec that describes it is sharper than before.
 5. **It is proven** — scenarios and tests, passing, in the pipeline.
 6. **It runs for real** — deployed, with a dashboard, and a rollback you can show.
 7. **The thread** — pick one requirement and follow it from the client's words, to the spec, to the

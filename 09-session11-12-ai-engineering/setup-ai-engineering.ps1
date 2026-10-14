@@ -7,7 +7,7 @@
 #  What it does, once per group:
 #    1. Adds ci\ai-review.yml, ci\review-mr.md, ci\post-review.mjs
 #    2. Creates .gitlab-ci.yml with the AI review included - or adds the include
-#    3. Adds the seven layer-3 Claude Code commands, templates and prompts
+#    3. Adds the ten layer-3 Claude Code commands, templates, prompts and the Azure lab constraints
 #    4. Adds the layer-3 section to CLAUDE.md
 #    5. Commits all of it as one commit
 #
@@ -80,9 +80,20 @@ Get-ChildItem (Join-Path $Here "claude-commands\*.md") | ForEach-Object {
   Copy-Item $_.FullName (Join-Path $Repo ".claude\commands\") -Force; $n++
 }
 Ok "$n commands added to .claude/commands/"
-foreach ($t in @("prompt-card","validation","ai-feature")) { Add-File (Join-Path $Here "templates\$t.md") "templates\$t.md" }
-Copy-Item (Join-Path $Here "prompts\11-12-ai-engineering.md") (Join-Path $Repo "prompts\") -Force
-Ok "prompts/11-12-ai-engineering.md added"
+foreach ($t in @("prompt-card","validation","spec-review")) { Add-File (Join-Path $Here "templates\$t.md") "templates\$t.md" }
+Copy-Item (Join-Path $Here "prompts\11-12-ai-engineering.md"), (Join-Path $Here "prompts\spec-enhancement.md") (Join-Path $Repo "prompts\") -Force
+Ok "prompts/11-12-ai-engineering.md and prompts/spec-enhancement.md added"
+Add-File (Join-Path (Split-Path -Parent $Here) "lab-constraints.md") "specs\design\azure-lab-constraints.md"   # read by /azure-gaps and /azure-terraform
+New-Item -ItemType Directory -Force -Path (Join-Path $Repo ".claude\infra-starter") | Out-Null
+Get-ChildItem (Join-Path $Here "infra-starter") -File | ForEach-Object { Add-File $_.FullName (".claude\infra-starter\" + $_.Name) }   # the known-good Terraform shape /azure-terraform starts from
+$gi = Join-Path $Repo ".gitignore"; if (-not (Test-Path $gi)) { New-Item -ItemType File $gi | Out-Null }
+$raw = Get-Content -Raw $gi -ErrorAction SilentlyContinue
+if ($raw -and -not $raw.EndsWith("`n")) { Add-Content -Path $gi -Value "" -NoNewline; Add-Content -Path $gi -Value "" }
+$giLines = @(Get-Content $gi -ErrorAction SilentlyContinue)
+foreach ($line in @('*.tfstate','*.tfstate.*','.terraform/','*.tfvars','!*.tfvars.example','.env')) {
+  if ($giLines -notcontains $line) { Add-Content -Path $gi -Value $line }
+}
+Ok ".gitignore keeps Terraform state, .terraform/, *.tfvars and .env out of git"
 
 Hdr "4 - CLAUDE.md"
 $claude = Join-Path $Repo "CLAUDE.md"

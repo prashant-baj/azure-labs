@@ -2,7 +2,7 @@
 #  MindSprint Junior SWAT Engineering Program 2026 - Labs
 #  check-ai-engineering.ps1  -  Sessions 11 and 12, layer 3: does the slice work,
 #                               built through merge requests, validated, with the
-#                               AI feature spec'd and guarded?
+#                               spec strengthened?
 #                               (Windows PowerShell 5.1 / PowerShell 7)
 #
 #  Checks structure, records and git discipline - never whether the code is good.
@@ -69,6 +69,17 @@ $leak = @(git -C $Repo grep -nIE $leakRx 2>$null | Select-Object -First 3)
 if ($leak.Count -eq 0) { Ok "No tokens or keys committed" }
 else { Bad "A token or key is committed - revoke it now, then remove it (W-004):"; $leak | ForEach-Object { $p = $_.Split(':'); Write-Host ("           " + $p[0] + ":" + $p[1] + "  (value hidden)") } }
 
+# --- Azure (Session 11): gaps found, infrastructure as code, no state in git ---------------
+Hdr "1b - Azure - gaps and infrastructure as code"
+if (Test-Path (Join-Path $Repo "specs\design\azure-gaps.md")) { Ok "specs/design/azure-gaps.md - gaps found and asked about" } else { Warn "No specs/design/azure-gaps.md - run /azure-gaps before writing Terraform" }
+if (@(Get-ChildItem (Join-Path $Repo "infra") -Filter *.tf -ErrorAction SilentlyContinue).Count -gt 0) { Ok "infra/ has Terraform" } else { Warn "No infra/*.tf yet - /azure-terraform writes it (Session 12 deploy exercise)" }
+$depLog = Join-Path $Repo "infra\deployments.md"; $ndep = 0
+if (Test-Path $depLog) { $ndep = @(Get-Content $depLog | Where-Object { $_ -match '^\|\s*[0-9]+\s*\|' }).Count }
+if ($ndep -ge 1) { Ok "infra/deployments.md - $ndep deployment(s) logged" } else { Warn "No deployment logged in infra/deployments.md - see DEPLOY-EXERCISE.md, checkpoint 6" }
+$state = @(git -C $Repo ls-files 2>$null | Where-Object { $_ -match '(^|/)([^/]*\.tfstate(\.backup)?|\.terraform/.*|[^/]*\.tfvars)$' -and $_ -notmatch '\.tfvars\.example$' } | Select-Object -First 3)
+if ($state.Count -eq 0) { Ok "No Terraform state, .terraform/ or .tfvars committed" }
+else { Bad "Terraform state or variables are committed - they can hold secrets. Remove them and add to .gitignore:"; $state | ForEach-Object { Write-Host "           $_" } }
+
 # --- 2. Building through merge requests -------------------------------------------------
 Hdr "2 - The slice, built through merge requests"
 $nmerge = @(git -C $Repo log --merges --oneline $Range 2>$null | Where-Object { $_ }).Count
@@ -90,31 +101,33 @@ if ($n -gt 0) { Ok "README.md changed in layer 3 - docs move with the code" } el
 $n = @(git -C $Repo log --oneline $Range -- "specs/$sliceName/trace.md" 2>$null | Where-Object { $_ }).Count
 if ($n -gt 0) { Ok "trace.md changed in layer 3" } else { Warn "trace.md not changed in layer 3 - re-run /spec-trace: which requirements now have code and tests?" }
 
-# --- 3. The AI-assisted feature -----------------------------------------------------------
-Hdr "3 - The AI-assisted feature (Session 12)"
-$evalF = Get-ChildItem $Repo -Recurse -File -Filter "*.json" -ErrorAction SilentlyContinue |
-  Where-Object { $_.Name -match '(?i)eval.*set' -and $_.FullName -notmatch '[\\/](node_modules|\.git|examples)[\\/]' } | Select-Object -First 1
-$nev = 0; $ngr = 0
-if (-not $evalF) { Warn "No eval set yet (eval-set.json) - /spec-ai-feature writes it" }
+# --- 3. The spec, strengthened with AI ----------------------------------------------
+Hdr "3 - The spec, strengthened with AI (Session 12)"
+$srev = Join-Path $SliceDir "reviews\spec-review.md"; $sundec = 1
+if (-not (Test-Path $srev)) { Warn "No specs/$sliceName/reviews/spec-review.md - run /spec-review (Session 12)" }
 else {
-  $et = [System.IO.File]::ReadAllText($evalF.FullName)
-  $nev = @([regex]::Matches($et, '"EVAL-\d{3}"') | ForEach-Object { $_.Value } | Sort-Object -Unique).Count
-  $ngr = @([regex]::Matches($et, '"guardrail"\s*:\s*true')).Count
-  $nsrc = @([regex]::Matches($et, '"source"\s*:')).Count
-  $rel = $evalF.FullName.Substring($Repo.Length + 1) -replace '\\','/'
-  if ($nev -ge 6) { Ok "Eval set: $nev examples ($rel)" } else { Warn "Eval set has $nev example(s) - at least six, from the evidence" }
-  if ($ngr -ge 1) { Ok "$ngr guardrail example(s) - input that tries to instruct the model" } else { Warn "No guardrail example - add one that tries to give the model instructions" }
-  if ($nsrc -ge $nev) { Ok "Every eval example cites a source" } else { Warn "Some eval examples have no source - where did they come from?" }
+  $srows = @((Lines $srev) | Where-Object { $_ -match '^\|\s*\d+\s*\|' })
+  Ok "Spec review: $($srows.Count) finding(s)"
+  $kinds = @($srows | ForEach-Object { [regex]::Matches((Cell $_ 2).ToLower(), 'ambiguous|untestable|missing if|missing example|conflict|no source|glossary|not asked') | ForEach-Object { $_.Value } } | Sort-Object -Unique).Count
+  if ($kinds -ge 3) { Ok "$kinds kinds of weakness looked for" } else { Warn "Only $kinds kind(s) of finding - look again: ambiguity, testability, missing If rows, conflicts" }
+  $sundec = @($srows | Where-Object { (Cell $_ 6) -eq "" }).Count
+  if ($srows.Count -gt 0) { if ($sundec -eq 0) { Ok "Every spec finding decided by the group" } else { Warn "$sundec spec finding(s) not decided - change, keep with a reason, or ask the client" } }
+  else { $sundec = 0 }
+}
+git -C $Repo rev-parse -q --verify refs/tags/L2-design *> $null
+if ($LASTEXITCODE -eq 0) {
+  $specRel = $SpecP.Substring($Repo.Length + 1) -replace '\\','/'
+  $nspec = @(git -C $Repo log --oneline L2-design..HEAD -- $specRel 2>$null).Count
+  if ($nspec -ge 1) { Ok "spec.md changed in layer 3 ($nspec commit(s))" } else { Warn "spec.md unchanged since L2-design - did the review change nothing?" }
 }
 $nif = @((Lines $SpecP) | Where-Object { $_ -match '^\|\s*FR-\d{3}\s*\|\s*If ' }).Count
-if ($nif -ge 2) { Ok "$nif 'If ... then' requirements in the spec" } else { Warn "$nif 'If' requirement(s) - the AI feature needs its own: AI down, answer not allowed, instructions in input" }
-$fake = @(git -C $Repo grep -lIiE 'class Fake|fake[A-Z_]|new Fake|Fake[A-Z][a-z]+\(' -- ':!examples/**' ':!.claude/**' 2>$null | Select-Object -First 1)
-if ($fake.Count -gt 0) { Ok "Guardrails tested with a fake ($($fake[0]))" } else { Warn "No fake found in the tests - test the guardrails without a model, key or network" }
-if (Test-Path (Join-Path $Repo ".env.example")) { Ok ".env.example lists the configuration names" } else { Warn "No .env.example - list the names (model, key) with empty values" }
+if ($nif -ge 2) { Ok "$nif 'If ... then' requirements in the spec" } else { Warn "$nif 'If' requirement(s) - /spec-review looks for the failure paths you have not written" }
+$ncl = @((Lines $SpecP) | Where-Object { $_ -match 'NEEDS CLARIFICATION' }).Count
+if ($ncl -eq 0) { Ok "No open NEEDS CLARIFICATION in the spec" } else { Warn "$ncl NEEDS CLARIFICATION still open - who in the client's team will answer them?" }
 
 # --- 4. Validation ------------------------------------------------------------------------
 Hdr "4 - Validation - four lenses, decided by people"
-$val = Get-ChildItem (Join-Path $SliceDir "reviews") -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '(?i)L3|validation' } | Sort-Object Name | Select-Object -Last 1
+$val = Get-ChildItem (Join-Path $SliceDir "reviews") -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '(?i)L3|validation' -and $_.Name -notmatch 'spec-review' } | Sort-Object Name | Select-Object -Last 1
 $undec = 1
 if (-not $val) { Warn "No validation in specs/$sliceName/reviews/ - run /validate-ai-code (Session 12)" }
 else {
@@ -144,8 +157,9 @@ $script:Miss = 0
 function Bar($have, $m) { if ($have) { Write-Host "  [ HAVE ] $m" -ForegroundColor Green } else { Write-Host "  [ NEED ] $m" -ForegroundColor Red; $script:Miss++ } }
 Bar ($ciT -match '(?m)ci/ai-review\.yml|^ai-review:') "AI review in the pipeline"
 Bar ($nmerge -ge 1) "Work merged through merge requests"
-Bar ($evalF -and $nev -ge 6 -and $ngr -ge 1) "AI feature spec'd, with an eval set and a guardrail example"
+Bar ((Test-Path $srev) -and $sundec -eq 0) "Spec reviewed with AI, every finding decided by the group"
 Bar ($val -and $undec -eq 0) "Validation through the four lenses, every finding decided"
+Bar ($ndep -ge 1) "Deployed to Azure with Terraform, logged in infra/deployments.md"
 Bar ($leak.Count -eq 0) "No tokens or keys in the repository"
 Bar $tagged "Tagged L3-working"
 Write-Host ""

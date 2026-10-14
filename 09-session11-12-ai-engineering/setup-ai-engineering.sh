@@ -8,7 +8,7 @@
 #  What it does, once per group:
 #    1. Adds ci/ai-review.yml, ci/review-mr.md, ci/post-review.mjs
 #    2. Creates .gitlab-ci.yml with the AI review included - or adds the include
-#    3. Adds the seven layer-3 Claude Code commands, templates and prompts
+#    3. Adds the ten layer-3 Claude Code commands, templates, prompts and the Azure lab constraints
 #    4. Adds the layer-3 section to CLAUDE.md
 #    5. Commits all of it as one commit
 #
@@ -71,8 +71,16 @@ hdr "3 · Commands, templates and prompts"
 mkdir -p "$REPO/.claude/commands" "$REPO/prompts"
 N=0; for c in "$HERE"/claude-commands/*.md; do cp "$c" "$REPO/.claude/commands/"; N=$((N+1)); done
 ok "$N commands added to .claude/commands/"
-for t in prompt-card validation ai-feature; do add "$HERE/templates/$t.md" "$REPO/templates/$t.md"; done
-cp "$HERE/prompts/11-12-ai-engineering.md" "$REPO/prompts/" && ok "prompts/11-12-ai-engineering.md added"
+for t in prompt-card validation spec-review; do add "$HERE/templates/$t.md" "$REPO/templates/$t.md"; done
+cp "$HERE/prompts/11-12-ai-engineering.md" "$HERE/prompts/spec-enhancement.md" "$REPO/prompts/" && ok "prompts/11-12-ai-engineering.md and prompts/spec-enhancement.md added"
+add "$HERE/../lab-constraints.md" "$REPO/specs/design/azure-lab-constraints.md"   # read by /azure-gaps and /azure-terraform
+mkdir -p "$REPO/.claude/infra-starter"; for f in "$HERE"/infra-starter/*; do add "$f" "$REPO/.claude/infra-starter/$(basename "$f")"; done   # the known-good Terraform shape /azure-terraform starts from
+GI="$REPO/.gitignore"; touch "$GI"
+[ -s "$GI" ] && [ -n "$(tail -c1 "$GI")" ] && echo >> "$GI"   # end the last line first
+for line in '*.tfstate' '*.tfstate.*' '.terraform/' '*.tfvars' '!*.tfvars.example' '.env'; do
+  grep -qxF "$line" "$GI" || echo "$line" >> "$GI"
+done
+ok ".gitignore keeps Terraform state, .terraform/, *.tfvars and .env out of git"
 
 hdr "4 · CLAUDE.md"
 if [ -f "$REPO/CLAUDE.md" ] && grep -q '^## Layer 3' "$REPO/CLAUDE.md"; then ok "CLAUDE.md already has the layer-3 section"

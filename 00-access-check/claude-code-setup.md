@@ -1,5 +1,8 @@
 # Set up Claude Code with your lab AI key
 
+> **Retired.** The lab OpenRouter keys have been revoked — everyone now uses their own Claude
+> licence. If you followed this guide earlier, undo it with **`claude-code-switch-to-licence.md`**.
+
 If your organisation has not given you a Claude licence, you can still use Claude Code in VS Code
 with the AI key from your vlabs lab. Setup takes about ten minutes. The key is paid for by the
 programme and has a budget, so the last sections cover how to use it well.

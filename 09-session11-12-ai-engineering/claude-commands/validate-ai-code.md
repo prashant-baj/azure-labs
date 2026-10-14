@@ -18,7 +18,7 @@ Then review through the four lenses:
 | Lens | Ask |
 |---|---|
 | **Correctness** | Does each change do what its requirement ID says? Every *If* row covered? Tests that cannot fail, or tests weakened to pass? Edge cases from the evidence log? |
-| **Security** | Secrets; input used unchecked; queries or commands built from strings; role checks the spec asks for; what data leaves the system, and to whom; for AI features — instructions hidden in input data |
+| **Security** | Secrets; input used unchecked; queries or commands built from strings; role checks the spec asks for; what data leaves the system, and to whom; logs that carry personal data |
 | **Maintainability** | Constitution section 5; the direction rule in plan section 12; code no task asked for; names against the glossary |
 | **Compliance** | Every C- rule; nothing deleted that must be kept; new libraries without an ADR, and their licences; personal data in logs or prompts |
 

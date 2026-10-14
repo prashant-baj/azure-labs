@@ -1,2 +1,0 @@
-# Only for running the real suggester and the eval set
-anthropic

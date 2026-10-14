@@ -3,7 +3,7 @@
 #  MindSprint Junior SWAT Engineering Program 2026 - Labs
 #  check-ai-engineering.sh  -  Sessions 11 and 12, layer 3: does the slice work,
 #                              built through merge requests, validated, with the
-#                              AI feature spec'd and guarded?  (macOS / Linux / WSL)
+#                              spec strengthened?  (macOS / Linux / WSL)
 #
 #  Checks structure, records and git discipline - never whether the code is good.
 #  That is what the review threads, the validation and the debrief are for.
@@ -60,6 +60,18 @@ LEAK=$(git -C "$REPO" grep -nIE 'sk-ant-[A-Za-z0-9_-]{20,}|glpat-[A-Za-z0-9_-]{2
 [ -z "$LEAK" ] && ok "No tokens or keys committed" \
   || { bad "A token or key is committed - revoke it now, then remove it (W-004):"; echo "$LEAK" | cut -d: -f1,2 | sed 's/^/           /; s/$/  (value hidden)/'; }
 
+# --- Azure (Session 11): gaps found, infrastructure as code, no state in git ---------
+hdr "1b · Azure - gaps and infrastructure as code"
+[ -f "$REPO/specs/design/azure-gaps.md" ] && ok "specs/design/azure-gaps.md - gaps found and asked about" \
+  || warn "No specs/design/azure-gaps.md - run /azure-gaps before writing Terraform"
+if ls "$REPO"/infra/*.tf >/dev/null 2>&1; then ok "infra/ has Terraform"; else warn "No infra/*.tf yet - /azure-terraform writes it (Session 12 deploy exercise)"; fi
+NDEP=0; [ -f "$REPO/infra/deployments.md" ] && NDEP=$(grep -cE '^\|[[:space:]]*[0-9]+[[:space:]]*\|' "$REPO/infra/deployments.md" || true)
+[ "$NDEP" -ge 1 ] && ok "infra/deployments.md - $NDEP deployment(s) logged" \
+  || warn "No deployment logged in infra/deployments.md - see DEPLOY-EXERCISE.md, checkpoint 6"
+STATE=$(git -C "$REPO" ls-files 2>/dev/null | grep -E '(^|/)(terraform\.tfstate|[^/]*\.tfstate(\.backup)?|\.terraform/|[^/]*\.tfvars)$' | grep -v '\.tfvars\.example$' | head -3)
+[ -z "$STATE" ] && ok "No Terraform state, .terraform/ or .tfvars committed" \
+  || { bad "Terraform state or variables are committed - they can hold secrets. Remove them and add to .gitignore:"; echo "$STATE" | sed 's/^/           /'; }
+
 # --- 2. Building through merge requests ------------------------------------------
 hdr "2 · The slice, built through merge requests"
 NMERGE=$(git -C "$REPO" log --merges --oneline $RANGE 2>/dev/null | grep -c . || true)
@@ -81,27 +93,32 @@ N=$(git -C "$REPO" log --oneline $RANGE -- README.md 2>/dev/null | grep -c . || 
 N=$(git -C "$REPO" log --oneline $RANGE -- "${SLICE#$REPO/}/trace.md" 2>/dev/null | grep -c . || true)
 [ "$N" -gt 0 ] && ok "trace.md changed in layer 3" || warn "trace.md not changed in layer 3 - re-run /spec-trace: which requirements now have code and tests?"
 
-# --- 3. The AI-assisted feature ----------------------------------------------------
-hdr "3 · The AI-assisted feature (Session 12)"
-EVAL=$(find "$REPO" -type f -iname '*eval*set*.json' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/examples/*' 2>/dev/null | head -1)
-if [ -z "$EVAL" ]; then warn "No eval set yet (eval-set.json) - /spec-ai-feature writes it"
+# --- 3. The spec, strengthened with AI ----------------------------------------------
+hdr "3 · The spec, strengthened with AI (Session 12)"
+SREV="$SLICE/reviews/spec-review.md"; SUNDEC=1
+if [ ! -f "$SREV" ]; then warn "No specs/$(basename "$SLICE")/reviews/spec-review.md - run /spec-review (Session 12)"
 else
-  NEV=$(grep -oE '"EVAL-[0-9]{3}"' "$EVAL" | sort -u | wc -l | tr -d ' ')
-  NGR=$(grep -cE '"guardrail"[[:space:]]*:[[:space:]]*true' "$EVAL" || true)
-  NSRC=$(grep -oE '"source"[[:space:]]*:' "$EVAL" | wc -l | tr -d ' ')
-  [ "$NEV" -ge 6 ] && ok "Eval set: $NEV examples (${EVAL#$REPO/})" || warn "Eval set has $NEV example(s) - at least six, from the evidence"
-  [ "$NGR" -ge 1 ] && ok "$NGR guardrail example(s) - input that tries to instruct the model" || warn "No guardrail example - add one that tries to give the model instructions"
-  [ "$NSRC" -ge "$NEV" ] && ok "Every eval example cites a source" || warn "Some eval examples have no source - where did they come from?"
+  SROWS=$(grep -E '^\|[[:space:]]*[0-9]+[[:space:]]*\|' "$SREV")
+  NSF=$(echo "$SROWS" | grep -c . || true)
+  ok "Spec review: $NSF finding(s)"
+  KINDS=$(echo "$SROWS" | cell 2 | tr 'A-Z' 'a-z' | grep -oE 'ambiguous|untestable|missing if|missing example|conflict|no source|glossary|not asked' | sort -u | wc -l | tr -d ' ')
+  [ "$KINDS" -ge 3 ] && ok "$KINDS kinds of weakness looked for" || warn "Only $KINDS kind(s) of finding - look again: ambiguity, testability, missing If rows, conflicts"
+  SUNDEC=$(echo "$SROWS" | cell 6 | grep -c '^$' || true)
+  [ "$NSF" -gt 0 ] && { [ "$SUNDEC" -eq 0 ] && ok "Every spec finding decided by the group" || warn "$SUNDEC spec finding(s) not decided - change, keep with a reason, or ask the client"; }
+  [ "$NSF" -eq 0 ] && SUNDEC=0
+fi
+if git -C "$REPO" rev-parse -q --verify refs/tags/L2-design >/dev/null; then
+  NSPEC=$(git -C "$REPO" log --oneline L2-design..HEAD -- "${SPEC#$REPO/}" 2>/dev/null | grep -c . || true)
+  [ "$NSPEC" -ge 1 ] && ok "spec.md changed in layer 3 ($NSPEC commit(s))" || warn "spec.md unchanged since L2-design - did the review change nothing?"
 fi
 NIF=$(grep -cE '^\|[[:space:]]*FR-[0-9]{3}[[:space:]]*\|[[:space:]]*If ' "$SPEC" || true)
-[ "$NIF" -ge 2 ] && ok "$NIF 'If ... then' requirements in the spec" || warn "$NIF 'If' requirement(s) - the AI feature needs its own: AI down, answer not allowed, instructions in input"
-FAKE=$(git -C "$REPO" grep -lIiE 'class Fake|fake[A-Z_]|new Fake|Fake[A-Z][a-z]+\(' -- ':!examples/**' ':!.claude/**' 2>/dev/null | head -1)
-[ -n "$FAKE" ] && ok "Guardrails tested with a fake (${FAKE})" || warn "No fake found in the tests - test the guardrails without a model, key or network"
-[ -f "$REPO/.env.example" ] && ok ".env.example lists the configuration names" || warn "No .env.example - list the names (model, key) with empty values"
+[ "$NIF" -ge 2 ] && ok "$NIF 'If ... then' requirements in the spec" || warn "$NIF 'If' requirement(s) - /spec-review looks for the failure paths you have not written"
+NCL=$(grep -c 'NEEDS CLARIFICATION' "$SPEC" || true)
+[ "$NCL" -eq 0 ] && ok "No open NEEDS CLARIFICATION in the spec" || warn "$NCL NEEDS CLARIFICATION still open - who in the client's team will answer them?"
 
 # --- 4. Validation ------------------------------------------------------------------
 hdr "4 · Validation — four lenses, decided by people"
-VAL=$(ls "$SLICE"/reviews/*L3*.md "$SLICE"/reviews/*validation*.md 2>/dev/null | sort -u | tail -1)
+VAL=$(ls "$SLICE"/reviews/*L3*.md "$SLICE"/reviews/*validation*.md 2>/dev/null | grep -v spec-review | sort -u | tail -1)
 UNDEC=1
 if [ -z "$VAL" ]; then warn "No validation in specs/$(basename "$SLICE")/reviews/ - run /validate-ai-code (Session 12)"
 else
@@ -131,8 +148,9 @@ MISS=0
 bar() { if [ "$1" = "yes" ]; then echo "  ${C_G}[ HAVE ]${C_0} $2"; else echo "  ${C_R}[ NEED ]${C_0} $2"; MISS=$((MISS+1)); fi; }
 R=no; [ -f "$CI" ] && grep -qE 'ci/ai-review\.yml|^ai-review:' "$CI" && R=yes; bar $R "AI review in the pipeline"
 R=no; [ "$NMERGE" -ge 1 ] && R=yes; bar $R "Work merged through merge requests"
-R=no; [ -n "$EVAL" ] && [ "${NEV:-0}" -ge 6 ] && [ "${NGR:-0}" -ge 1 ] && R=yes; bar $R "AI feature spec'd, with an eval set and a guardrail example"
+R=no; [ -f "$SREV" ] && [ "$SUNDEC" -eq 0 ] && R=yes; bar $R "Spec reviewed with AI, every finding decided by the group"
 R=no; [ -n "$VAL" ] && [ "$UNDEC" -eq 0 ] && R=yes; bar $R "Validation through the four lenses, every finding decided"
+R=no; [ "$NDEP" -ge 1 ] && R=yes; bar $R "Deployed to Azure with Terraform, logged in infra/deployments.md"
 R=no; [ -z "$LEAK" ] && R=yes; bar $R "No tokens or keys in the repository"
 bar $TAGGED "Tagged L3-working"
 echo
