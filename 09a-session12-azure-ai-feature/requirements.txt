@@ -1,0 +1,3 @@
+# Installed by the Azure remote build. Keep this list short - every library is a decision (ADR).
+azure-functions
+openai

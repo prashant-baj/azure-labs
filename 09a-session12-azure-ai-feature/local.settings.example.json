@@ -1,0 +1,10 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "MODEL_BASE_URL": "https://openrouter.ai/api/v1",
+    "MODEL_NAME": "<a model id your key can use>",
+    "MODEL_API_KEY": ""
+  }
+}
