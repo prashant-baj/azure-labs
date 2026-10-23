@@ -1,0 +1,189 @@
+# Continuous deployment of a TEST resource to Azure - your workshop project, signed in with OIDC.
+# Lab 09c. setup-workshop-cd adds it to your .gitlab-ci.yml:
+#
+#   include:
+#     - local: ci/cd-test.yml
+#
+# and your `stages:` list must contain `test` and `deploy` (setup-workshop-cd adds them).
+#
+#   a branch push that changes the test infra : cdtest:validate                     (no Azure needed)
+#   main, when the test infra changed           : cdtest:state -> cdtest:plan -> cdtest:apply -> cdtest:verify
+#     after ALL your other jobs pass              cdtest:destroy  (button - and automatic after 2 hours)
+#   main, Build > Pipelines > Run pipeline      : the same, even if nothing changed
+#
+# "Changed" means infra-test/*.tf, infra-test/site/* or this file. Editing infra-test/DEPLOYED.md,
+# your code or your specs does not deploy - a test resource only moves when its definition moves.
+#
+# Variables (Settings > CI/CD > Variables) - your facilitator sets them, README step 1:
+#   AZURE_OIDC_CLIENT_ID   the app registration that trusts THIS project's main branch   (an ID, not a secret)
+#   AZURE_TENANT_ID        on your group
+#   AZURE_SUBSCRIPTION_ID  on your group
+# Fallback while OIDC is not ready: AZURE_CLIENT_ID + AZURE_CLIENT_SECRET (the team service principal
+# on your group). The job log always says which one was used.
+#
+# Every name here starts with cdtest / CDTEST, so it can sit next to anything else you include.
+
+.cdtest-on-main: &cdtest-on-main
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes: &cdtest-changes [infra-test/*.tf, infra-test/site/*, ci/cd-test.yml]
+
+.cdtest-env: &cdtest-env |
+  export TF_IN_AUTOMATION=1 ARM_TENANT_ID="$AZURE_TENANT_ID" ARM_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+  if [ -n "${AZURE_OIDC_CLIENT_ID:-}" ]; then
+    export AZ_MODE=oidc ARM_USE_OIDC=true ARM_CLIENT_ID="$AZURE_OIDC_CLIENT_ID" ARM_OIDC_TOKEN="$CDTEST_JWT"
+    echo "Azure sign-in: OIDC - short-lived GitLab token, no secret stored"
+  elif [ -n "${AZURE_CLIENT_SECRET:-}" ]; then
+    export AZ_MODE=secret ARM_CLIENT_ID="$AZURE_CLIENT_ID" ARM_CLIENT_SECRET="$AZURE_CLIENT_SECRET"
+    echo "Azure sign-in: team service principal secret (fallback - ask for AZURE_OIDC_CLIENT_ID to switch to OIDC)"
+  else
+    echo "No Azure identity on this pipeline. Either AZURE_OIDC_CLIENT_ID is not set on this project,"
+    echo "or this branch is not protected (the variables are protected: main only). README, step 1."; exit 1
+  fi
+  if [ -z "${ARM_TENANT_ID}" ] || [ -z "${ARM_SUBSCRIPTION_ID}" ]; then
+    echo "AZURE_TENANT_ID or AZURE_SUBSCRIPTION_ID is missing (README, step 1)"; exit 1
+  fi
+  GROUP_NO="$(echo "$CI_PROJECT_NAMESPACE" | tr -cd '0-9' | tail -c 3)"
+  export TF_VAR_prefix="wk${GROUP_NO:-0}" TF_VAR_project="$CI_PROJECT_PATH"
+  export TF_VAR_commit="$CI_COMMIT_SHORT_SHA" TF_VAR_pipeline_url="$CI_PIPELINE_URL"
+  export CDTEST_STATE_SA="sttf$(printf '%s' "${ARM_SUBSCRIPTION_ID}${CI_PROJECT_ID}" | sha1sum | cut -c1-16)"
+  export CDTEST_STATE_KEY="${CI_PROJECT_PATH_SLUG}/${CDTEST_ROOT}.tfstate"
+
+.cdtest:
+  tags: [junior-SWAT-engineers-program]
+  variables:
+    CDTEST_ROOT: infra-test
+    CDTEST_STATE_RG: rg-tfstate
+
+.cdtest-terraform:
+  extends: .cdtest
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  id_tokens:
+    CDTEST_JWT:
+      aud: api://AzureADTokenExchange
+  resource_group: cdtest-azure              # one Terraform run at a time on this project
+  before_script:
+    - *cdtest-env
+    - cd "$CDTEST_ROOT"
+    - >
+      terraform init -input=false
+      -backend-config="resource_group_name=$CDTEST_STATE_RG"
+      -backend-config="storage_account_name=$CDTEST_STATE_SA"
+      -backend-config="container_name=tfstate"
+      -backend-config="key=$CDTEST_STATE_KEY"
+
+cdtest:validate:
+  extends: .cdtest
+  stage: test
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_BRANCH'
+      changes: *cdtest-changes
+  script:
+    - cd "$CDTEST_ROOT"
+    - terraform fmt -check -recursive
+    - terraform init -backend=false -input=false
+    - terraform validate
+
+# No `needs:` - so it waits for every job in the earlier stages (your lint, tests, ...).
+# A red test on main means nothing is deployed.
+cdtest:state:
+  extends: .cdtest
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli
+  id_tokens:
+    CDTEST_JWT:
+      aud: api://AzureADTokenExchange
+  rules: *cdtest-on-main
+  script:
+    - *cdtest-env
+    - |
+      if [ "$AZ_MODE" = oidc ]; then
+        az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --federated-token "$CDTEST_JWT" -o none
+      else
+        az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --password="$ARM_CLIENT_SECRET" -o none
+      fi
+    - az account set --subscription "$ARM_SUBSCRIPTION_ID"
+    - echo "Signed in as $(az account show --query user.name -o tsv) to $(az account show --query name -o tsv)"
+    - az group create -n "$CDTEST_STATE_RG" -l eastus -o none
+    - |
+      if ! az storage account show -n "$CDTEST_STATE_SA" -g "$CDTEST_STATE_RG" -o none 2>/dev/null; then
+        echo "Creating the Terraform state account $CDTEST_STATE_SA (first run, or the lab was cleaned)"
+        az storage account create -n "$CDTEST_STATE_SA" -g "$CDTEST_STATE_RG" -l eastus --sku Standard_LRS \
+          --kind StorageV2 --min-tls-version TLS1_2 --allow-blob-public-access false -o none
+      fi
+    - KEY=$(az storage account keys list -n "$CDTEST_STATE_SA" -g "$CDTEST_STATE_RG" --query "[0].value" -o tsv)
+    - az storage container create -n tfstate --account-name "$CDTEST_STATE_SA" --account-key "$KEY" -o none
+    - echo "State is in $CDTEST_STATE_SA/tfstate/$CDTEST_STATE_KEY"
+
+cdtest:plan:
+  extends: .cdtest-terraform
+  stage: deploy
+  rules: *cdtest-on-main
+  needs: [cdtest:state]
+  script:
+    - terraform plan -input=false -out=plan.tfplan
+    - terraform show -no-color plan.tfplan | tail -n 3
+  artifacts:
+    paths: ["$CDTEST_ROOT/plan.tfplan"]
+    expire_in: 1 day
+
+cdtest:apply:
+  extends: .cdtest-terraform
+  stage: deploy
+  rules: *cdtest-on-main
+  needs: [cdtest:plan]
+  script:
+    - terraform apply -input=false plan.tfplan          # exactly the plan the previous job showed
+    - echo "SITE_URL=$(terraform output -raw site_url)" > "$CI_PROJECT_DIR/cdtest.env"
+    - cat "$CI_PROJECT_DIR/cdtest.env"
+  artifacts:
+    reports:
+      dotenv: cdtest.env
+  environment:
+    name: cd-test
+    url: $SITE_URL
+    on_stop: cdtest:destroy
+    auto_stop_in: 2 hours                            # test only - GitLab runs cdtest:destroy for you
+
+cdtest:verify:
+  extends: .cdtest
+  stage: deploy
+  image:
+    name: curlimages/curl:8.10.1
+    entrypoint: [""]
+  rules: *cdtest-on-main
+  needs: [cdtest:apply]
+  script:
+    - |
+      for i in $(seq 1 20); do
+        if curl -fsS "$SITE_URL" 2>/dev/null | grep -q "$CI_COMMIT_SHORT_SHA"; then
+          echo "$SITE_URL shows commit $CI_COMMIT_SHORT_SHA - deployed by this pipeline"; exit 0
+        fi
+        echo "try $i: $SITE_URL does not show $CI_COMMIT_SHORT_SHA yet"; sleep 10
+      done
+      echo "The page never showed this commit - open $SITE_URL and the cdtest:apply log"; exit 1
+
+cdtest:destroy:
+  extends: .cdtest-terraform
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "web"'
+      when: manual
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes: *cdtest-changes
+      when: manual
+  needs: [cdtest:state]                              # so it can still clean up after a half-done apply
+  allow_failure: true                                # a manual button must not hold the pipeline
+  script:
+    - terraform destroy -input=false -auto-approve
+  environment:
+    name: cd-test
+    action: stop

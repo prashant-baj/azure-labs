@@ -1,0 +1,164 @@
+# Continuous deployment to Azure with Terraform - signed in with OIDC (no secret).
+# Session 12. Include it from your .gitlab-ci.yml:
+#
+#   include:
+#     - local: ci/azure-deploy.yml
+#
+# and make sure your `stages:` list (if you have one) contains `test` and `deploy`.
+#
+#   every branch : tf:validate                        (no Azure needed)
+#   main only    : azure:state -> tf:plan -> tf:apply -> verify:url    (automatic)
+#                  tf:destroy                          (manual button)
+#
+# Variables (Settings > CI/CD > Variables) - see README step 3:
+#   AZURE_OIDC_CLIENT_ID   the app registration that trusts this project's main branch   (an ID, not a secret)
+#   AZURE_TENANT_ID        already on your group, set by your facilitator
+#   AZURE_SUBSCRIPTION_ID  already on your group, set by your facilitator
+# Fallback while OIDC is not ready: AZURE_CLIENT_ID + AZURE_CLIENT_SECRET (the team service principal on
+# your group, protected - main only). The job log always says which one was used.
+
+variables:
+  TF_ROOT: infra-cd-test                      # point this at infra/ later, to deploy your own component
+  TF_STATE_KEY: "${CI_PROJECT_PATH_SLUG}/${TF_ROOT}.tfstate"
+  TF_STATE_RG: rg-tfstate
+
+.on-main: &on-main
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+.azure-login-env: &azure-login-env |
+  export ARM_TENANT_ID="$AZURE_TENANT_ID" ARM_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+  if [ -n "${AZURE_OIDC_CLIENT_ID:-}" ]; then
+    export AZ_MODE=oidc ARM_USE_OIDC=true ARM_CLIENT_ID="$AZURE_OIDC_CLIENT_ID" ARM_OIDC_TOKEN="$AZURE_JWT"
+    echo "Azure sign-in: OIDC - short-lived GitLab token, no secret stored"
+  elif [ -n "${AZURE_CLIENT_SECRET:-}" ]; then
+    export AZ_MODE=secret ARM_CLIENT_ID="$AZURE_CLIENT_ID" ARM_CLIENT_SECRET="$AZURE_CLIENT_SECRET"
+    echo "Azure sign-in: team service principal secret (fallback - set AZURE_OIDC_CLIENT_ID to switch to OIDC)"
+  else
+    echo "No Azure identity: add AZURE_OIDC_CLIENT_ID (README step 3)"; exit 1
+  fi
+  if [ -z "${ARM_TENANT_ID}" ] || [ -z "${ARM_SUBSCRIPTION_ID}" ]; then
+    echo "AZURE_TENANT_ID or AZURE_SUBSCRIPTION_ID is missing (README step 3)"; exit 1
+  fi
+  export TF_VAR_prefix="cd$(echo "$CI_PROJECT_NAMESPACE" | tr -cd '0-9' | tail -c 3)" TF_VAR_commit="$CI_COMMIT_SHORT_SHA"
+  export TF_STATE_SA="sttf$(printf '%s' "${ARM_SUBSCRIPTION_ID}${CI_PROJECT_ID}" | sha1sum | cut -c1-16)"
+
+.terraform:
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  tags: [junior-SWAT-engineers-program]
+  id_tokens:
+    AZURE_JWT:
+      aud: api://AzureADTokenExchange
+  resource_group: azure-deploy                 # one Terraform run at a time
+  before_script:
+    - *azure-login-env
+    - cd "$TF_ROOT"
+    - >
+      terraform init -input=false
+      -backend-config="resource_group_name=$TF_STATE_RG"
+      -backend-config="storage_account_name=$TF_STATE_SA"
+      -backend-config="container_name=tfstate"
+      -backend-config="key=$TF_STATE_KEY"
+
+tf:validate:
+  stage: test
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  tags: [junior-SWAT-engineers-program]
+  script:
+    - cd "$TF_ROOT"
+    - terraform fmt -check -recursive
+    - terraform init -backend=false -input=false
+    - terraform validate
+
+azure:state:
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli
+  tags: [junior-SWAT-engineers-program]
+  id_tokens:
+    AZURE_JWT:
+      aud: api://AzureADTokenExchange
+  rules: *on-main
+  needs: [tf:validate]
+  script:
+    - *azure-login-env
+    - |
+      if [ "$AZ_MODE" = oidc ]; then
+        az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --federated-token "$AZURE_JWT" -o none
+      else
+        az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --password="$ARM_CLIENT_SECRET" -o none
+      fi
+    - az account set --subscription "$ARM_SUBSCRIPTION_ID"
+    - echo "Signed in as $(az account show --query user.name -o tsv) to $(az account show --query name -o tsv)"
+    - az group create -n "$TF_STATE_RG" -l eastus -o none
+    - |
+      if ! az storage account show -n "$TF_STATE_SA" -g "$TF_STATE_RG" -o none 2>/dev/null; then
+        echo "Creating the Terraform state account $TF_STATE_SA (first run, or the lab was cleaned)"
+        az storage account create -n "$TF_STATE_SA" -g "$TF_STATE_RG" -l eastus --sku Standard_LRS \
+          --kind StorageV2 --min-tls-version TLS1_2 --allow-blob-public-access false -o none
+      fi
+    - KEY=$(az storage account keys list -n "$TF_STATE_SA" -g "$TF_STATE_RG" --query "[0].value" -o tsv)
+    - az storage container create -n tfstate --account-name "$TF_STATE_SA" --account-key "$KEY" -o none
+    - echo "State is in $TF_STATE_SA/tfstate/$TF_STATE_KEY"
+
+tf:plan:
+  extends: .terraform
+  stage: deploy
+  rules: *on-main
+  needs: [azure:state]
+  script:
+    - terraform plan -input=false -out=plan.tfplan
+    - terraform show -no-color plan.tfplan | tail -n 3
+  artifacts:
+    paths: ["$TF_ROOT/plan.tfplan"]
+    expire_in: 1 day
+
+tf:apply:
+  extends: .terraform
+  stage: deploy
+  rules: *on-main
+  needs: [tf:plan]
+  script:
+    - terraform apply -input=false plan.tfplan          # exactly the plan the previous job showed
+    - echo "APP_URL=$(terraform output -raw app_url)" > "$CI_PROJECT_DIR/deploy.env"
+    - cat "$CI_PROJECT_DIR/deploy.env"
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: azure-test
+    url: $APP_URL
+
+verify:url:
+  stage: .post
+  image:
+    name: curlimages/curl:8.10.1
+    entrypoint: [""]
+  tags: [junior-SWAT-engineers-program]
+  rules: *on-main
+  needs: [tf:apply]
+  script:
+    - |
+      for i in $(seq 1 20); do
+        code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL" || true)
+        echo "try $i: $APP_URL -> $code"
+        [ "$code" = 200 ] && exit 0
+        sleep 15
+      done
+      echo "The app did not answer 200 within 5 minutes"; exit 1
+
+tf:destroy:
+  extends: .terraform
+  stage: .post
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  needs: [azure:state]
+  allow_failure: true                          # a manual button must not leave the pipeline "blocked"
+  script:
+    - terraform destroy -input=false -auto-approve
+  environment:
+    name: azure-test
+    action: stop

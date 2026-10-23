@@ -202,6 +202,13 @@ Six checkpoints, the plan-reading questions, and a troubleshooting table: **`DEP
 The known-good Terraform is in `infra-starter/`; a stand-in app (if yours cannot run yet) is in
 `sample-app/`. Log every apply in `infra/deployments.md`.
 
+### For Maintainers — the same deploy, from the pipeline (OIDC)
+
+Once a person can deploy from the CLI, let the pipeline do it on every merge to `main` — signed in to
+Azure with **OIDC**, no password stored in GitLab. The how-to, a one-time setup script and a small
+Terraform test deployment are in **[`../09b-session12-cicd-oidc/`](../09b-session12-cicd-oidc/README.md)**
+(about 40 minutes, two Maintainers per group).
+
 ### The four lenses
 
 | Lens | Ask of every AI-written change |
