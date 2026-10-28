@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Session 13 - the fast half of the pipeline, before every push: format, lint, tests and scenarios, secrets.
+# Install once per laptop, from the root of your case repo (Git for Windows runs this with its own bash):
+#   mkdir -p .githooks && cp <azure-labs>/10-session13-quality/hooks/pre-push .githooks/ && chmod +x .githooks/pre-push
+#   git config core.hooksPath .githooks
+# Commit .githooks/ so the whole group has it; each person runs the git config line once.
+# Skip it only with a reason the group would accept:  git push --no-verify
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+APP=$(sed -nE 's/^[[:space:]]+QA_APP_DIR:[[:space:]]*"([^"]*)".*/\1/p' ci/quality.yml 2>/dev/null | head -1); APP="${APP:-.}"
+have() { command -v "$1" >/dev/null 2>&1; }
+fail=0; step() { echo; echo "pre-push > $1"; }
+
+if [ -f "$APP/pom.xml" ]; then
+  step "Java: spotless, checkstyle, tests"
+  (cd "$APP" && mvn -B -q spotless:check checkstyle:check) || { echo "  fix formatting: mvn spotless:apply"; fail=1; }
+  (cd "$APP" && mvn -B -q test) || fail=1
+elif [ -f "$APP/package.json" ]; then
+  step "Node: prettier, eslint, tests, scenarios"
+  (cd "$APP" && npx --no-install prettier --check .) || { echo "  fix formatting: npx prettier --write ."; fail=1; }
+  (cd "$APP" && npx --no-install eslint .) || fail=1
+  (cd "$APP" && npm test --silent) || fail=1
+  if [ -f "$APP/cucumber.mjs" ] || [ -f "$APP/cucumber.js" ]; then (cd "$APP" && npx --no-install cucumber-js) || fail=1; fi
+elif [ -f "$APP/pyproject.toml" ] || [ -f "$APP/requirements.txt" ]; then
+  step "Python: ruff, pytest (unit tests and scenarios)"
+  RUFF="ruff"; have ruff || RUFF="python -m ruff"
+  $RUFF format --check "$APP" || { echo "  fix formatting: ruff format $APP"; fail=1; }
+  $RUFF check "$APP" || fail=1
+  (cd "$APP" && python -m pytest -q) || fail=1
+else
+  echo "pre-push: no pom.xml, package.json, pyproject.toml or requirements.txt in '$APP' - set QA_APP_DIR in ci/quality.yml"
+fi
+
+if have gitleaks; then
+  step "Secrets: gitleaks on the commits you are pushing"
+  gitleaks git --redact --no-banner --log-opts="@{upstream}..HEAD" . 2>/dev/null \
+    || gitleaks git --redact --no-banner . || fail=1
+fi
+
+echo
+if [ "$fail" -ne 0 ]; then echo "pre-push: NOT pushed - fix the lines above (or triage them), then push again."; exit 1; fi
+echo "pre-push: all green - pushing. The pipeline still runs everything, including SAST and dependencies."

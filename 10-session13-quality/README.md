@@ -31,6 +31,10 @@ The demo can now say: *"Every push is checked against our quality bar — and th
 | 6 | **Scenarios, red**: `/spec-scenarios` — read one aloud; run them; see them fail | whole group | 5 min |
 | 7 | **TDD the rule**: `/tdd-cycle`, one example per cycle — then check, merge, tag | pairs | 10 min |
 
+**Setting up CI for the first time, or stuck?** [`CI-SETUP.md`](CI-SETUP.md) walks through it on your own case
+repo: install the tools, the lint configuration for your stack, the local loop before every push (with an
+optional pre-push hook), and the GitLab pipeline click by click.
+
 **Two repositories, as before:** this lab (azure-labs, GitHub) is pull-only. Your case repo (GitLab) is where you
 push. `setup-quality` on your laptop is the bridge. Never copy `examples/` or `stacks/` into your case repo.
 
@@ -52,6 +56,10 @@ things before anyone else does:
 | Infrastructure | checkov | `pip install checkov` | `pip install checkov` |
 
 Missing one? `quality-local` says *skipped* and tells you how to get it. The pipeline still runs it.
+Exact install commands for each OS, including Windows: [`CI-SETUP.md`](CI-SETUP.md), section 0.
+
+**No lint configuration in your repo yet?** `qa:lint` needs one. Tested starters for ruff, ESLint + Prettier and
+Spotless + Checkstyle are in [`lint-config/`](lint-config/) — [`CI-SETUP.md`](CI-SETUP.md), section 1, before you push.
 
 ## Part A · Set up (once per group, 10 minutes)
 
@@ -119,7 +127,8 @@ Then it shows the matching `variables:` for `ci/quality.yml` — `QA_COMPLEXITY_
 git -C ~/work/group-1 push -u origin setup/layer-4 -o merge_request.create -o merge_request.target=main
 ```
 
-Open the pipeline. Expect red on the first run — **that is the point**: the gates found something nobody had
+Check the YAML in **Build → Pipeline editor**, then open the merge request → **Pipelines** — where to look
+and what each job runs locally: [`CI-SETUP.md`](CI-SETUP.md), section 3. Expect red on the first run — **that is the point**: the gates found something nobody had
 looked for. For every red job, read the log, then **`/triage-findings <gate>`** — one finding at a time:
 
 | Decision | When | How |

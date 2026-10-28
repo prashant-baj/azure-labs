@@ -1,0 +1,17 @@
+# ruff - Session 13 quality gates. Copy to the folder qa:lint checks (QA_APP_DIR), or put the same
+# settings under [tool.ruff] in your pyproject.toml (then drop this file - ruff.toml wins if both exist).
+line-length = 110
+target-version = "py312"
+extend-exclude = ["specs", ".claude"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "C90", "BLE", "S", "UP"]
+#          pycodestyle, pyflakes, import order, bugbear, complexity (E-003), blind except (E-006),
+#          bandit security (S608 = SQL built from strings), pyupgrade
+ignore = ["S101"]          # assert is how pytest checks
+
+[lint.mccabe]
+max-complexity = 10        # E-003 - match the limit in your constitution
+
+[lint.per-file-ignores]
+"tests/**" = ["S", "B"]    # test code may use fixed passwords, asserts, etc.

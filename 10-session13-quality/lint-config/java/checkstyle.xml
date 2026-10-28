@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+  "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!-- Session 13 quality gates - a small rule set you can explain line by line. Formatting is Spotless's job.
+     Copy next to your pom.xml. Add rules as your constitution grows; never switch one off to pass. -->
+<module name="Checker">
+  <property name="severity" value="error"/>
+  <module name="TreeWalker">
+    <module name="CyclomaticComplexity">          <!-- E-003: match the limit in your constitution -->
+      <property name="max" value="10"/>
+    </module>
+    <module name="EmptyCatchBlock"/>               <!-- E-006: no swallowed errors -->
+    <module name="IllegalCatch"/>                  <!-- E-006: no catch (Exception e) -->
+    <module name="EqualsHashCode"/>
+    <module name="StringLiteralEquality"/>
+    <module name="MissingSwitchDefault"/>
+    <module name="UnusedImports"/>
+    <module name="AvoidStarImport"/>
+    <module name="MethodLength">
+      <property name="max" value="60"/>
+    </module>
+    <module name="ParameterNumber">
+      <property name="max" value="6"/>
+    </module>
+  </module>
+</module>

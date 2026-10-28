@@ -27,3 +27,9 @@ fed-cred.json
 .env
 *.pem
 *.key
+
+# Build output - never commit
+target/
+node_modules/
+__pycache__/
+.pytest_cache/
