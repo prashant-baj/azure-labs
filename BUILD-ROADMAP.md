@@ -27,8 +27,8 @@ The spec changes first. If the code moves and the spec does not, the layer is no
 | 2 | 10 · Engineering Excellence Practices | **Shape it well** | The components of the slice, drawn as code in the plan. Clean code and design principles added to the constitution as rules | A first version of the code, then reviewed and refactored against those rules | `L2-design` | "Clean structure — and the rules it follows" |
 | 3 | 11–12 · AI-assisted Software Engineering | **Make it work** | The spec strengthened with AI — gaps, untestable lines and missing *If* rows found; every change decided by the group | The slice built task by task, through merge requests. AI reviews every MR; a person approves. The work in progress deployed to Azure with Terraform, from the CLI | `L3-working` | "It works end to end — and a human checks what the AI does" |
 | — | 23 Oct · Mid-point check-in | *Show the business* | — | — | — | First demo of what is working |
-| 4 | 13 · Quality-first Engineering | **Prove the behaviour** | User stories and acceptance criteria; executable scenarios (Gherkin) tagged with requirement IDs | Scenarios that pass; the rule built test-first | `L4-behaviour` | "The spec runs — as tests" |
-| 5 | 14–15 · Modern Testing & Automation | **Automate the confidence** | A test strategy for the whole system, in the design record | Unit, integration, API and end-to-end tests; regression in the pipeline; AI-suggested tests, reviewed | `L5-tested` | "Every change is tested before it merges" |
+| 4 | 13 · Quality-first Engineering | **Prove the behaviour** | Quality gates — lint, complexity, secrets, static analysis, dependencies — each with a rule and a baseline; user stories and acceptance criteria; executable scenarios (Gherkin) tagged with requirement IDs | A baseline quality pipeline on every push; scenarios that pass; the rule built test-first | `L4-behaviour` | "Every push meets our quality bar — and the spec runs, as tests" |
+| 5 | 14–15 · Modern Testing & Automation | **Automate the confidence** | A test strategy whose confidence thresholds the pipeline decides on — performance from the NFRs, coverage and test count as ratchets | Unit, API, end-to-end and performance checks; AI-suggested tests, reviewed; every merge to main builds once, deploys to a test environment, verifies and shows a scorecard | `L5-tested` | "Every merge deploys — with a scorecard of what it proved" |
 | 6 | 16–17 · Secure, Observable & Production-ready | **Ready for production** | Security, logging and monitoring requirements; a readiness checklist | Secrets kept safely, logs and a dashboard, infrastructure as code, a pipeline that deploys and can roll back | `L6-production` | "Deployed, watched — and we can roll back" |
 | 7 | 18 · Engineering Excellence Review | **Reviewed** | Review findings become spec and ADR changes | The fixes | `L7-reviewed` | "What the review board found, and what we fixed" |
 | 8 | 19–21 · Integrated delivery | **Tell the story** | Nothing new — walk the trace | Polish only | `final` | The whole walk-through |
@@ -44,7 +44,7 @@ If every layer is in place, the demo tells itself, in the same order you built i
 2. **The spec** — one slice, requirements with IDs and sources.
 3. **The design** — components, principles, the stack and why.
 4. **It works** — the slice, end to end, and the spec that describes it is sharper than before.
-5. **It is proven** — scenarios and tests, passing, in the pipeline.
+5. **It is proven** — quality gates, scenarios and tests, passing, in the pipeline.
 6. **It runs for real** — deployed, with a dashboard, and a rollback you can show.
 7. **The thread** — pick one requirement and follow it from the client's words, to the spec, to the
    task, to the test, to the code, to the metric on the dashboard.

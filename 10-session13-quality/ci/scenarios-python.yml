@@ -1,0 +1,19 @@
+# Layer 4 - the scenarios run on every push, as their own job with their own test report.
+# Added by setup-quality as ci/scenarios.yml and included from .gitlab-ci.yml. Stage `test` must exist.
+# Your unit tests keep running in your own test job; this job shows the scenarios separately in the MR.
+scenarios:
+  stage: test
+  image: python:3.12-slim
+  tags: [junior-SWAT-engineers-program]
+  variables:
+    APP_DIR: "."                           # the folder with requirements.txt / pyproject.toml
+  script:
+    - cd "$APP_DIR"
+    - if [ ! -d tests/step_defs ]; then echo "No tests/step_defs yet - no scenarios to run. Session 13, step 5 adds them."; exit 0; fi
+    - if [ -f requirements.txt ]; then pip install --quiet -r requirements.txt; else pip install --quiet -e .; fi
+    - pip install --quiet pytest pytest-bdd           # in case your dependency file does not list them yet
+    - python -m pytest -q -p no:cacheprovider tests/step_defs --junitxml="$CI_PROJECT_DIR/scenarios.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: scenarios.xml                 # each scenario shows in the merge request's test report

@@ -1,0 +1,20 @@
+# BDD starter, Python: pytest + pytest-bdd. Copy the [tool.pytest.ini_options] lines into YOUR pyproject.toml.
+[tool.pytest.ini_options]
+pythonpath = ["."]
+# Where the .feature files are, relative to this file. In your repo: "../specs/001-<slice>/features/" or similar.
+bdd_features_base_dir = "features/"
+# pytest-bdd turns every @tag into a pytest marker - list your IDs here to keep the run quiet.
+markers = ["US-002", "FR-008", "RULE-002"]
+
+# The engineering rules as checks (Session 10): ruff format + ruff check run in qa:lint.
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = ["dues"]

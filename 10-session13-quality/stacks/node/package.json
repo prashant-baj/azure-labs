@@ -1,0 +1,12 @@
+{
+  "name": "bdd-starter-node",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "scenarios": "cucumber-js"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.0.0"
+  }
+}

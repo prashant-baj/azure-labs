@@ -1,0 +1,21 @@
+# Layer 4 - the scenarios run on every push, as their own job with their own test report.
+# Added by setup-quality as ci/scenarios.yml and included from .gitlab-ci.yml. Stage `test` must exist.
+# Needs the runner class RunScenariosTest (stacks/java/README.md). `mvn test` in your own test job runs it too.
+scenarios:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  tags: [junior-SWAT-engineers-program]
+  variables:
+    APP_DIR: "."                           # the folder with pom.xml
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2"
+  cache:
+    paths: [.m2/]
+  script:
+    - cd "$APP_DIR"
+    - mvn -B test -Dtest=RunScenariosTest -Dsurefire.failIfNoSpecifiedTests=false
+  after_script:
+    - cp "$APP_DIR/target/surefire-reports/TEST-"*RunScenariosTest.xml scenarios.xml 2>/dev/null || true
+  artifacts:
+    when: always
+    reports:
+      junit: scenarios.xml

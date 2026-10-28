@@ -1,0 +1,16 @@
+# Layer 4 - the scenarios run on every push, as their own job with their own test report.
+# Added by setup-quality as ci/scenarios.yml and included from .gitlab-ci.yml. Stage `test` must exist.
+scenarios:
+  stage: test
+  image: node:22
+  tags: [junior-SWAT-engineers-program]
+  variables:
+    APP_DIR: "."                           # the folder with package.json and cucumber.mjs
+  script:
+    - cd "$APP_DIR"
+    - npm ci
+    - npx cucumber-js --format "junit:$CI_PROJECT_DIR/scenarios.xml"
+  artifacts:
+    when: always
+    reports:
+      junit: scenarios.xml

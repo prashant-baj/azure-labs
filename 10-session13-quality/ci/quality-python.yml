@@ -1,0 +1,118 @@
+# Quality gates - the baseline pipeline (Session 13). Added by setup-quality as ci/quality.yml and
+# included from .gitlab-ci.yml. Needs the stages `check` and `test` (setup-quality makes sure).
+#
+#   check : qa:lint  qa:complexity  qa:secrets           - fast; fail first
+#   test  : qa:sast  qa:dependencies  qa:iac (if infra/)  - next to your tests and scenarios
+#
+# Policy (record it in specs/design/quality-gates.md):
+#   blocks from day one : lint errors, any secret, SAST findings of severity ERROR, known-vulnerable dependencies
+#   ratchet             : complexity and IaC findings - today's count is the baseline; it may only go down.
+#                         Until you set a baseline, these two report and do not block.
+#
+# Every tool is pinned to a version (and the downloaded binary to a checksum). A security scanner that
+# runs "latest" runs whatever was published last - including by someone who should not have.
+
+variables:
+  QA_APP_DIR: "."                 # the folder with your code and build file
+  QA_COMPLEXITY_LIMIT: "10"       # cyclomatic complexity per function - match rule E-003 in your constitution
+  QA_COMPLEXITY_BASELINE: ""      # functions above the limit today (quality-gates.md). Empty = report only
+  QA_IAC_BASELINE: ""             # failed IaC checks today (quality-gates.md). Empty = report only
+  OSV_VERSION: "2.2.4"
+  OSV_SHA256: "7702cd1e5d9f5059dd9570f4ad967f27d3c5f5391b371ec937b384c238177f55"
+
+.qa:
+  tags: [junior-SWAT-engineers-program]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
+qa:lint:                          # E-010 formatting, E-003/E-006 code rules - from your pyproject.toml
+  extends: .qa
+  stage: check
+  image: python:3.12-slim
+  script:
+    - pip install --quiet "ruff==0.17.2"
+    - ruff format --check "$QA_APP_DIR"
+    - ruff check "$QA_APP_DIR" --output-format=gitlab --output-file=gl-code-quality.json || { ruff check "$QA_APP_DIR"; exit 1; }
+  artifacts:
+    when: always
+    reports:
+      codequality: gl-code-quality.json   # findings appear in the merge request
+
+qa:complexity:                    # E-003 - one number per function, any language
+  extends: .qa
+  stage: check
+  image: python:3.12-slim
+  script:
+    - pip install --quiet "lizard==1.24.2"
+    - set -f                      # keep the */tests/* patterns away from the shell
+    - ARGS="-C $QA_COMPLEXITY_LIMIT -w -x */node_modules/* -x */tests/* -x */test/* -x */.claude/* -x */target/* -x */specs/*"
+    - |
+      N=$(lizard $ARGS "$QA_APP_DIR" | grep -c 'warning:' || true)
+      echo "Functions above complexity $QA_COMPLEXITY_LIMIT: $N"
+      if [ -z "$QA_COMPLEXITY_BASELINE" ]; then
+        lizard $ARGS "$QA_APP_DIR" || true
+        echo "No baseline yet - report only. Write $N in specs/design/quality-gates.md and set QA_COMPLEXITY_BASELINE: \"$N\"."
+      else
+        echo "Baseline: $QA_COMPLEXITY_BASELINE - it may only go down."
+        lizard $ARGS -i "$QA_COMPLEXITY_BASELINE" "$QA_APP_DIR"
+      fi
+
+qa:secrets:                       # E-008 - never a secret in the repository, in any commit
+  extends: .qa
+  stage: check
+  image:
+    name: zricethezav/gitleaks:v8.21.2
+    entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"                # the whole history - a deleted secret is still in git
+  script:
+    - gitleaks git --redact --no-banner -v .
+
+qa:sast:                          # static analysis - injection, unsafe calls, weak crypto
+  extends: .qa
+  stage: test
+  image: semgrep/semgrep:1.182.1
+  script:
+    - semgrep scan --config p/default --metrics off --exclude specs --exclude .claude --gitlab-sast-output=gl-sast-report.json .
+    - echo "Blocking on severity ERROR:"
+    - semgrep scan --config p/default --metrics off --exclude specs --exclude .claude --severity ERROR --error --quiet .
+  artifacts:
+    when: always
+    paths: [gl-sast-report.json]
+    reports:
+      sast: gl-sast-report.json
+
+qa:dependencies:                  # known vulnerabilities in what you depend on - lockfiles, requirements, pom.xml
+  extends: .qa
+  stage: test
+  image: alpine:3.20
+  script:
+    - wget -q -O /usr/local/bin/osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+    - echo "${OSV_SHA256}  /usr/local/bin/osv-scanner" | sha256sum -c -    # the binary is the one we pinned - or the job stops
+    - chmod +x /usr/local/bin/osv-scanner
+    - |
+      rc=0; osv-scanner scan source -r "$QA_APP_DIR" || rc=$?
+      if [ "$rc" = 128 ]; then echo "No lockfile or pinned requirements found - nothing can be checked. Pin your dependencies."; exit 1; fi
+      exit $rc
+
+qa:iac:                           # your Terraform, against cloud misconfiguration rules
+  extends: .qa
+  stage: test
+  image:
+    name: bridgecrew/checkov:3.3.30
+    entrypoint: [""]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+      exists: [infra/**/*.tf]
+  script:
+    - checkov -d infra --framework terraform --compact --quiet || true
+    - |
+      N=$(checkov -d infra --framework terraform --compact --quiet 2>/dev/null | sed -n 's/.*Failed checks: \([0-9]*\).*/\1/p' | head -1); N=${N:-0}
+      echo "Failed IaC checks: $N"
+      if [ -z "$QA_IAC_BASELINE" ]; then echo "No baseline yet - report only. Triage each one (/triage-findings), then set QA_IAC_BASELINE: \"$N\"."
+      elif [ "$N" -gt "$QA_IAC_BASELINE" ]; then echo "More than the baseline ($QA_IAC_BASELINE) - a new misconfiguration. Fix it, or skip it in the .tf with a reason."; exit 1
+      else echo "Within the baseline ($QA_IAC_BASELINE)."; fi
