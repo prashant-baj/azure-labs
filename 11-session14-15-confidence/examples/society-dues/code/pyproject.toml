@@ -1,0 +1,15 @@
+# The group's engineering rules, made into checks (E-003, E-010).
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "BLE", "SIM", "C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+# The scenarios live with the spec (../features here; specs/NNN-<slice>/features in your repo).
+bdd_features_base_dir = "../features/"
+markers = ["US-001", "US-002", "FR-003", "FR-004", "FR-006", "FR-008", "RULE-001", "RULE-002"]

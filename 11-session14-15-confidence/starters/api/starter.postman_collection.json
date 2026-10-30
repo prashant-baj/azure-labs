@@ -1,0 +1,93 @@
+{
+  "info": {
+    "name": "<your project> - API checks",
+    "description": "Every pm.test name starts with the ID it proves. Runs before merge (api:local) and after deploy (verify:api).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health - the service answers, and says which version",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"SMOKE the service answers 200\", () => pm.response.to.have.status(200));",
+              "const expected = pm.environment.get(\"expectedVersion\");",
+              "if (expected) { pm.test(\"SMOKE the deployed version is this commit\", () => pm.expect(pm.response.json().version).to.eql(expected)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-0nn - <the happy path, in the requirement's words>",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/<path>",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "<path>"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-0nn <what it proves>\", () => pm.response.to.have.status(200));",
+              "pm.test(\"NFR-0nn answered within the budget\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"budgetMs\") || 2000)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-0nn - <the failure path: wrong input, not allowed, duplicate>",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/<path>",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "<path>"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-0nn <refused with the right status>\", () => pm.expect(pm.response.code).to.be.oneOf([400, 403, 404, 409, 422]));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

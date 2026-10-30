@@ -1,0 +1,293 @@
+{
+  "info": {
+    "_postman_id": "00000000-0000-0000-0000-000000005d1e",
+    "name": "Society dues - API checks (spec 001)",
+    "description": "Every test name starts with the ID it proves. Runs before merge against the app in the pipeline, and after deploy against the test environment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health - the service answers, and says which version",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"SMOKE the service answers 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"SMOKE status is ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));",
+              "const expected = pm.environment.get(\"expectedVersion\");",
+              "if (expected) { pm.test(\"SMOKE the deployed version is this commit\", () => pm.expect(pm.response.json().version).to.eql(expected)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-003 - a UPI payment is matched by its remark",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/upi",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "upi"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bank_reference\": \"{{ref}}\",\n  \"remark\": \"B-304 Oct maint\",\n  \"payer\": \"Asha\",\n  \"amount\": \"2500\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"ref\", \"PM-\" + Date.now() + \"-\" + Math.floor(Math.random() * 1e6));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-003 201 Created\", () => pm.response.to.have.status(201));",
+              "pm.test(\"FR-003 matched to B-304\", () => pm.expect(pm.response.json().flat).to.eql(\"B-304\"));",
+              "pm.test(\"NFR-001 answered within the budget\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"budgetMs\") || 2000)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-004 - the same bank reference again is counted once",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/upi",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "upi"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bank_reference\": \"{{ref}}\",\n  \"remark\": \"B-304 Oct maint\",\n  \"payer\": \"Asha\",\n  \"amount\": \"2500\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-004 reported as a duplicate\", () => pm.expect(pm.response.json().duplicate).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-006 - an unknown flat is set aside with its reason",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/upi",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "upi"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bank_reference\": \"{{ref}}-X\",\n  \"remark\": \"Z-999\",\n  \"payer\": \"Asha\",\n  \"amount\": \"100\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-006 not matched\", () => pm.expect(pm.response.json().flat).to.eql(null));",
+              "pm.test(\"FR-006 the reason is given\", () => pm.expect(pm.response.json().reason).to.eql(\"flat in remark does not exist\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-008 - a flat that paid in full is not reminded",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Role",
+            "value": "treasurer"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reminders"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-008 200\", () => pm.response.to.have.status(200));",
+              "const flats = pm.response.json().map(r => r.flat);",
+              "pm.test(\"FR-008 B-304 paid - not on the list\", () => pm.expect(flats).to.not.include(\"B-304\"));",
+              "pm.test(\"FR-008 every row has a balance\", () => pm.response.json().forEach(r => pm.expect(r.balance).to.be.a(\"string\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "C-002 - a resident may not see the reminder list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-Role",
+            "value": "resident"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/reminders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "reminders"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"C-002 403 Forbidden\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FR-001 - an impossible amount is refused",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/payments/upi",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "payments",
+            "upi"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bank_reference\": \"{{ref}}-N\",\n  \"remark\": \"B-304\",\n  \"payer\": \"Asha\",\n  \"amount\": \"-5\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"FR-001 422 for a negative amount\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "ref",
+      "value": ""
+    }
+  ]
+}

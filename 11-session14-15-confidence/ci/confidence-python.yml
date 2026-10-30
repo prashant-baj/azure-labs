@@ -1,0 +1,395 @@
+# Measurable confidence - Sessions 14 and 15. Added by setup-testing as ci/confidence.yml, included from
+# .gitlab-ci.yml. The thresholds live in specs/design/test-strategy.md, table "Confidence thresholds";
+# ci/confidence.py reads them. Change a threshold there, in a merge request - never here.
+#
+#   every branch     .pre   confidence:thresholds   reads the strategy -> P95_MS, ERROR_RATE, COVERAGE_MIN
+#   (Session 14)     test   api:local               your app started in the job, Postman checks against it
+#                    .post  confidence:merge        scorecard of the "merge" rows -> confidence.md in the MR
+#
+#   main, when CONFIDENCE_DEPLOY is "on" (Session 15) - build once, deploy, verify, decide:
+#                    deploy deploy:state -> deploy:registry -> build:image -> deploy:test   (destroy:test by hand)
+#                    verify verify:smoke  verify:api  verify:e2e (if tests/e2e)  verify:perf
+#                    .post  confidence:deploy       scorecard of every row - the pipeline is red unless CONFIDENT
+#
+#   until then, every branch shows that half as orange "(planned)" jobs - the whole design, honestly marked
+#   as not built yet. CONFIDENCE_DEPLOY "on" replaces them with the real jobs (on main).
+#
+# Needs the stages check, test, deploy, verify (setup-testing adds verify). Azure sign-in as in lab 09c:
+# AZURE_OIDC_CLIENT_ID + AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID (protected - main only).
+
+variables:
+  APP_DIR: "."                      # the folder with your Dockerfile and build file
+  APP_PORT: "8000"                  # the port your app listens on, in the container and in api:local
+  HEALTH_PATH: "/health"            # answers 200 with {"status":"ok","version":"<APP_VERSION>"} - see README
+  APP_START: ""                     # how api:local starts your app, e.g. "uvicorn app.main:app --port 8000". Empty = api:local off
+  APP_NAME: "api"                   # the image name, and app_name in infra/
+  CONFIDENCE_DEPLOY: "off"          # Session 15: "on" - main builds, deploys to the test environment and verifies
+  CONFIDENCE_INFRA: "infra"         # your Terraform from Session 12
+  CONFIDENCE_ACR: "azurerm_container_registry.acr"   # the registry's address in your Terraform
+  CONFIDENCE_STATE_RG: "rg-tfstate"
+
+.confidence:
+  tags: [junior-SWAT-engineers-program]
+
+.on-branches: &on-branches
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    when: never
+  - if: '$CI_COMMIT_BRANCH'
+
+.on-deploy: &on-deploy
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+
+.azure-env: &azure-env |
+  export TF_IN_AUTOMATION=1 ARM_TENANT_ID="$AZURE_TENANT_ID" ARM_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+  if [ -n "${AZURE_OIDC_CLIENT_ID:-}" ]; then
+    export AZ_MODE=oidc ARM_USE_OIDC=true ARM_CLIENT_ID="$AZURE_OIDC_CLIENT_ID" ARM_OIDC_TOKEN="$CONFIDENCE_JWT"
+  elif [ -n "${AZURE_CLIENT_SECRET:-}" ]; then
+    export AZ_MODE=secret ARM_CLIENT_ID="$AZURE_CLIENT_ID" ARM_CLIENT_SECRET="$AZURE_CLIENT_SECRET"
+    echo "Azure sign-in: team service principal secret (fallback) - OIDC is set up in lab 09c"
+  else
+    echo "No Azure identity - AZURE_OIDC_CLIENT_ID is not on this project, or this branch is not protected"; exit 1
+  fi
+  GROUP_NO="$(echo "$CI_PROJECT_NAMESPACE" | tr -cd '0-9' | tail -c 3)"
+  export TF_VAR_prefix="test${GROUP_NO:-0}" TF_VAR_app_name="$APP_NAME"       # the pipeline's own environment
+  export CONFIDENCE_STATE_SA="sttf$(printf '%s' "${ARM_SUBSCRIPTION_ID}${CI_PROJECT_ID}" | sha1sum | cut -c1-16)"
+
+.az-login: &az-login |
+  if [ "$AZ_MODE" = oidc ]; then az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --federated-token "$CONFIDENCE_JWT" -o none
+  else az login --service-principal -u "$ARM_CLIENT_ID" -t "$ARM_TENANT_ID" --password="$ARM_CLIENT_SECRET" -o none; fi
+  az account set --subscription "$ARM_SUBSCRIPTION_ID"
+
+.confidence-terraform:
+  extends: .confidence
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
+  id_tokens:
+    CONFIDENCE_JWT:
+      aud: api://AzureADTokenExchange
+  resource_group: confidence-test   # one deploy at a time
+  before_script:
+    - *azure-env
+    - cd "$CONFIDENCE_INFRA"
+    # The laptop that applied in Session 12 keeps its local state. The pipeline keeps its own, remote -
+    # an override file, written here, never committed: your infra/ files stay as they are.
+    - printf 'terraform {\n  backend "azurerm" {}\n}\n' > ci_backend_override.tf
+    - >
+      terraform init -input=false -reconfigure
+      -backend-config="resource_group_name=$CONFIDENCE_STATE_RG"
+      -backend-config="storage_account_name=$CONFIDENCE_STATE_SA"
+      -backend-config="container_name=tfstate"
+      -backend-config="key=${CI_PROJECT_PATH_SLUG}/test-environment.tfstate"
+
+# ---------------------------------------------------------------- every branch (Session 14)
+confidence:thresholds:
+  extends: .confidence
+  stage: .pre
+  image: python:3.12-slim
+  rules: *on-branches
+  script:
+    - python3 ci/confidence.py --env | tee thresholds.env
+  artifacts:
+    reports:
+      dotenv: thresholds.env
+
+api:local:                          # your app, started in this job; the Postman collection against it
+  extends: .confidence
+  stage: test
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $APP_START'
+  script:
+    - apt-get update -qq && apt-get install -y -qq nodejs npm curl > /dev/null
+    - (cd "$APP_DIR" && pip install --quiet -r requirements.txt)
+    - (cd "$APP_DIR" && APP_VERSION="$CI_COMMIT_SHORT_SHA" sh -c "$APP_START" > "$CI_PROJECT_DIR/app.log" 2>&1 < /dev/null &)
+    - |
+      for i in $(seq 1 60); do curl -fs "http://localhost:$APP_PORT$HEALTH_PATH" > /dev/null && break; sleep 2; done
+      curl -fs "http://localhost:$APP_PORT$HEALTH_PATH" || { echo "The app did not answer on $HEALTH_PATH - its log:"; cat app.log; exit 1; }
+    - >
+      npx --yes newman@6.2.3 run tests/api/*.postman_collection.json
+      --env-var baseUrl="http://localhost:$APP_PORT" --env-var expectedVersion="$CI_COMMIT_SHORT_SHA"
+      --reporters cli,junit --reporter-junit-export newman-local.xml
+  artifacts:
+    when: always
+    paths: [newman-local.xml, app.log]
+    reports:
+      junit: newman-local.xml
+
+confidence:merge:                   # the merge-time scorecard - one table in the merge request
+  extends: .confidence
+  stage: .post
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+      when: never                   # on main, confidence:deploy decides
+    - if: '$CI_COMMIT_BRANCH'
+      when: always                  # a scorecard even when a test job failed - that is when you need it
+  script:
+    - python3 ci/confidence.py --when merge --api newman-local.xml
+  artifacts:
+    when: always
+    expose_as: "Confidence"
+    paths: [confidence.md, confidence.json]
+
+# ---------------------------------------------------------------- main, Session 15
+deploy:state:
+  extends: .confidence
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli:2.67.0
+  id_tokens:
+    CONFIDENCE_JWT:
+      aud: api://AzureADTokenExchange
+  rules: *on-deploy
+  script:
+    - *azure-env
+    - *az-login
+    - az group create -n "$CONFIDENCE_STATE_RG" -l eastus -o none
+    - |
+      az storage account show -n "$CONFIDENCE_STATE_SA" -g "$CONFIDENCE_STATE_RG" -o none 2>/dev/null || \
+        az storage account create -n "$CONFIDENCE_STATE_SA" -g "$CONFIDENCE_STATE_RG" -l eastus --sku Standard_LRS \
+          --kind StorageV2 --min-tls-version TLS1_2 --allow-blob-public-access false -o none
+    - KEY=$(az storage account keys list -n "$CONFIDENCE_STATE_SA" -g "$CONFIDENCE_STATE_RG" --query "[0].value" -o tsv)
+    - az storage container create -n tfstate --account-name "$CONFIDENCE_STATE_SA" --account-key "$KEY" -o none
+
+deploy:registry:                    # the registry first - the image needs somewhere to go
+  extends: .confidence-terraform
+  stage: deploy
+  rules: *on-deploy
+  needs: [deploy:state]
+  script:
+    # The one place we use -target: the registry must exist before the image, and the app needs the image.
+    - terraform apply -input=false -auto-approve -target="$CONFIDENCE_ACR"
+    - echo "ACR_NAME=$(terraform output -raw acr_name)" > "$CI_PROJECT_DIR/registry.env"
+    - echo "ACR_SERVER=$(terraform output -raw acr_login_server)" >> "$CI_PROJECT_DIR/registry.env"
+  artifacts:
+    reports:
+      dotenv: registry.env
+
+build:image:                        # built once, in Azure, tagged with the commit - the same image every check sees
+  extends: .confidence
+  stage: deploy
+  image: mcr.microsoft.com/azure-cli:2.67.0
+  id_tokens:
+    CONFIDENCE_JWT:
+      aud: api://AzureADTokenExchange
+  rules: *on-deploy
+  needs: [deploy:registry]
+  script:
+    - *azure-env
+    - *az-login
+    - az acr build -r "$ACR_NAME" -t "$APP_NAME:$CI_COMMIT_SHORT_SHA" "$APP_DIR"
+    - echo "IMAGE=$ACR_SERVER/$APP_NAME:$CI_COMMIT_SHORT_SHA" > image.env
+  artifacts:
+    reports:
+      dotenv: image.env
+
+deploy:test:
+  extends: .confidence-terraform
+  stage: deploy
+  rules: *on-deploy
+  needs: [build:image]
+  script:
+    - export TF_VAR_image="$IMAGE" TF_VAR_target_port="$APP_PORT"
+    - export TF_VAR_settings="{APP_VERSION=\"$CI_COMMIT_SHORT_SHA\", PORT=\"$APP_PORT\"}"
+    - terraform apply -input=false -auto-approve
+    - echo "APP_URL=$(terraform output -raw app_url)" > "$CI_PROJECT_DIR/deploy.env"
+    - cat "$CI_PROJECT_DIR/deploy.env"
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: test
+    url: $APP_URL
+    on_stop: destroy:test
+
+destroy:test:                       # by hand: Operate > Environments > test > Stop, or play this job
+  extends: .confidence-terraform
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+      when: manual
+  allow_failure: true               # waiting for a person never blocks the pipeline
+  needs: [deploy:test]
+  script:
+    - terraform destroy -input=false -auto-approve
+  environment:
+    name: test
+    action: stop
+
+verify:smoke:                       # it answers - and it is this commit, not the last one
+  extends: .confidence
+  stage: verify
+  image:
+    name: curlimages/curl:8.10.1
+    entrypoint: [""]
+  rules: *on-deploy
+  needs: [deploy:test]
+  script:
+    - |
+      for i in $(seq 1 30); do
+        body=$(curl -fs "$APP_URL$HEALTH_PATH" || true)
+        echo "try $i: $body"
+        case "$body" in *"$CI_COMMIT_SHORT_SHA"*) echo "{\"ok\": true, \"version\": \"$CI_COMMIT_SHORT_SHA\"}" > health.json; exit 0;; esac
+        sleep 10
+      done
+      echo "{\"ok\": false, \"version\": null}" > health.json
+      echo "$APP_URL$HEALTH_PATH never answered with this commit"; exit 1
+  artifacts:
+    when: always
+    paths: [health.json]
+
+verify:api:                         # the same Postman collection, now against the deployed service
+  extends: .confidence
+  stage: verify
+  image: node:22-alpine
+  rules: *on-deploy
+  needs: [deploy:test, verify:smoke]
+  script:
+    - >
+      npx --yes newman@6.2.3 run tests/api/*.postman_collection.json
+      --env-var baseUrl="$APP_URL" --env-var expectedVersion="$CI_COMMIT_SHORT_SHA"
+      --reporters cli,junit --reporter-junit-export newman-test.xml
+  artifacts:
+    when: always
+    paths: [newman-test.xml]
+    reports:
+      junit: newman-test.xml
+
+verify:e2e:                         # a journey the client would notice, in a real browser
+  extends: .confidence
+  stage: verify
+  image: mcr.microsoft.com/playwright:v1.56.1-noble
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+      exists: [tests/e2e/package.json]
+  needs: [deploy:test, verify:smoke]
+  script:
+    - cd tests/e2e && if [ -f package-lock.json ]; then npm ci --silent; else npm install --silent --no-audit --no-fund; fi
+    - BASE_URL="$APP_URL" CI=1 npx playwright test
+  artifacts:
+    when: always
+    paths: [tests/e2e/e2e.xml, tests/e2e/test-results/]
+    reports:
+      junit: tests/e2e/e2e.xml
+
+verify:perf:                        # a performance smoke - a few users, the NFR thresholds from the strategy
+  extends: .confidence
+  stage: verify
+  image:
+    name: grafana/k6:1.4.2
+    entrypoint: [""]
+  rules: *on-deploy
+  needs: [deploy:test, verify:smoke, confidence:thresholds]
+  script:
+    - k6 run --summary-export=k6-summary.json -e BASE_URL="$APP_URL" -e P95_MS="${P95_MS:-2000}" -e ERROR_RATE="${ERROR_RATE:-0.01}" tests/perf/smoke.js
+  artifacts:
+    when: always
+    paths: [k6-summary.json]
+
+confidence:deploy:                  # the decision: every signal, against the strategy's thresholds
+  extends: .confidence
+  stage: .post
+  image: python:3.12-slim
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+      when: always
+  script:
+    - python3 ci/confidence.py --when deploy --api newman-test.xml
+  artifacts:
+    when: always
+    expose_as: "Confidence"
+    paths: [confidence.md, confidence.json]
+
+# ---------------------------------------------------------------- the planned half (Session 14 -> 15)
+# Until CONFIDENCE_DEPLOY is "on", these stand in for the deploy-and-verify jobs, so the pipeline shows your
+# whole test design today. Each names the strategy measure it will produce and ends as an orange WARNING -
+# never green: a placeholder proves nothing, and the scorecard keeps those rows "after deploy".
+# Your strategy says a check is not automated (no web UI, say)? Delete its planned job - and write why in the
+# strategy. A gate of your own that is not built yet? Copy one, change the three PLANNED_ variables.
+.planned:
+  extends: .confidence
+  image: alpine:3.20
+  variables:
+    GIT_STRATEGY: none
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CONFIDENCE_DEPLOY != "on"'
+  allow_failure:
+    exit_codes: [3]                 # 3 = planned: orange in the pipeline, never green, never blocking
+  script:
+    - echo "PLANNED  [$PLANNED_MEASURE]  $PLANNED_WHAT"
+    - echo "Becomes real in $PLANNED_WHEN. Until then it proves nothing - the scorecard shows its row as 'after deploy'."
+    - exit 3
+
+"api:local (planned)":
+  extends: .planned
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $APP_START == ""'
+  variables:
+    PLANNED_MEASURE: "api.pass_rate"
+    PLANNED_WHAT: "your app started in the job, the Postman collection against it - set APP_START (stacks.md, section 3)"
+    PLANNED_WHEN: "the push where APP_START is set"
+
+"build:image (planned)":
+  extends: .planned
+  stage: deploy
+  variables:
+    PLANNED_MEASURE: "-"
+    PLANNED_WHAT: "the image, built once in Azure from APP_DIR, tagged with the commit"
+    PLANNED_WHEN: "Session 15"
+
+"deploy:test (planned)":
+  extends: .planned
+  stage: deploy
+  variables:
+    PLANNED_MEASURE: "-"
+    PLANNED_WHAT: "Terraform applies infra/ to your own test environment, with this image"
+    PLANNED_WHEN: "Session 15"
+
+"verify:smoke (planned)":
+  extends: .planned
+  stage: verify
+  variables:
+    PLANNED_MEASURE: "smoke.version"
+    PLANNED_WHAT: "the deployed service answers /health - with this commit, not the last one"
+    PLANNED_WHEN: "Session 15"
+
+"verify:api (planned)":
+  extends: .planned
+  stage: verify
+  variables:
+    PLANNED_MEASURE: "api.pass_rate"
+    PLANNED_WHAT: "the same Postman collection, against the deployed URL"
+    PLANNED_WHEN: "Session 15"
+
+"verify:e2e (planned)":
+  extends: .planned
+  stage: verify
+  variables:
+    PLANNED_MEASURE: "e2e.pass_rate"
+    PLANNED_WHAT: "one journey the client would notice, in a real browser (only with a web UI)"
+    PLANNED_WHEN: "Session 15"
+
+"verify:perf (planned)":
+  extends: .planned
+  stage: verify
+  variables:
+    PLANNED_MEASURE: "perf.p95_ms, perf.error_rate"
+    PLANNED_WHAT: "a k6 performance smoke against the deployed URL, thresholds from your NFRs"
+    PLANNED_WHEN: "Session 15"
+
+"confidence:deploy (planned)":
+  extends: .planned
+  stage: .post
+  variables:
+    PLANNED_MEASURE: "every row"
+    PLANNED_WHAT: "the deploy scorecard - every row of the strategy, red unless CONFIDENT"
+    PLANNED_WHEN: "Session 15"
