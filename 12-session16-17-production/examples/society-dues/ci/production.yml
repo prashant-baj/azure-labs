@@ -1,0 +1,175 @@
+# Ready for production - Sessions 16 and 17. Added by setup-production as ci/production.yml, included from
+# .gitlab-ci.yml next to ci/confidence.yml. Runs on main when CONFIDENCE_DEPLOY is "on", after deploy:test.
+#
+#   Session 16   verify:dast            a scan of the running service (OWASP ZAP baseline) -> zap.json -> dast.high
+#   Session 17   verify:observability   telemetry from THIS commit reached the workspace   -> obs.json -> obs.version
+#                drill:slow  drill:errors  drill:load  drill:clear   (manual) the drill, test environment only
+#                (until OBSERVABILITY is "on", an orange "verify:observability (planned)" stands in - Session 16)
+#                rollback:test                              (manual) the previous commit's image, back in service
+#
+# confidence:deploy reads zap.json and obs.json like every other report - add the rows to your strategy.
+# Secrets: masked GitLab variables only. Each TF_VAR_ line below hands one to Terraform (infra/secrets.tf).
+
+variables:
+  TF_VAR_treasurer_key: "$TREASURER_KEY"   # one line per secret in local.app_secrets - the value stays masked
+  TF_VAR_alert_email: "$ALERT_EMAIL"       # not a secret: who the alerts email (infra/observability.tf)
+  OBS_BUSINESS_METRIC: "dues_payments_recorded" # OBS-001 - your business metric's name, exactly as in the code
+  TF_VAR_business_metric: "$OBS_BUSINESS_METRIC"   # the dashboard tile and the check read the same name
+  TF_VAR_nfr_p95_ms: "2000"         # OBS-002 - the p95 alert line: the same number as the p95 row of your strategy
+  ZAP_IMAGE: "ghcr.io/zaproxy/zaproxy:2.16.1"
+  OBSERVABILITY: "on"               # Session 17: "on" once infra/observability.tf is applied - the real check replaces the planned one
+
+.prod:
+  tags: [junior-SWAT-engineers-program]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+
+.prod-manual:
+  extends: .prod
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on"'
+      when: manual
+  allow_failure: true               # waiting for a person never blocks the pipeline
+
+.obs:
+  extends: .prod
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on" && $OBSERVABILITY == "on"'
+
+.obs-manual:
+  extends: .prod
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CONFIDENCE_DEPLOY == "on" && $OBSERVABILITY == "on"'
+      when: manual
+  allow_failure: true
+
+.prod-azure:
+  image: mcr.microsoft.com/azure-cli:2.67.0
+  id_tokens:
+    PROD_JWT:
+      aud: api://AzureADTokenExchange
+  before_script:
+    - |
+      export ARM_TENANT_ID="$AZURE_TENANT_ID" ARM_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID"
+      if [ -n "${AZURE_OIDC_CLIENT_ID:-}" ]; then
+        az login --service-principal -u "$AZURE_OIDC_CLIENT_ID" -t "$AZURE_TENANT_ID" --federated-token "$PROD_JWT" -o none
+      else
+        az login --service-principal -u "$AZURE_CLIENT_ID" -t "$AZURE_TENANT_ID" --password="$AZURE_CLIENT_SECRET" -o none
+      fi
+      az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+      az extension add --name containerapp --yes -o none 2>/dev/null || true
+      # Which Container App? The one deploy:test just answered from - found by its address, no names to guess.
+      FQDN="${APP_URL#https://}"
+      set -- $(az containerapp list --query "[?properties.configuration.ingress.fqdn=='$FQDN'].[name, resourceGroup]" -o tsv)
+      export PROD_APP="${PROD_APP:-$1}" PROD_RG="${PROD_RG:-$2}"
+      [ -n "$PROD_APP" ] || { echo "No Container App answers at $APP_URL - did deploy:test run in this pipeline?"; exit 1; }
+      echo "Container App $PROD_APP in $PROD_RG"
+
+# ---------------------------------------------------------------- Session 16: is the running service safe?
+verify:dast:                        # T-01..T-05: what an attacker sees from outside - headers, cookies, leaks
+  extends: .prod
+  stage: verify
+  image:
+    name: $ZAP_IMAGE
+    entrypoint: [""]
+  needs: [deploy:test, verify:smoke]
+  script:
+    - mkdir -p /zap/wrk
+    - zap-baseline.py -t "$APP_URL" -J zap.json -r zap.html -I || echo "ZAP finished with warnings - the scorecard decides"
+    - cp /zap/wrk/zap.json /zap/wrk/zap.html "$CI_PROJECT_DIR/"
+  artifacts:
+    when: always
+    paths: [zap.json, zap.html]
+
+# ---------------------------------------------------------------- Session 17: can we see it?
+"verify:observability (planned)":   # Session 16: drawn, not built - orange until OBSERVABILITY is "on"
+  tags: [junior-SWAT-engineers-program]
+  stage: verify
+  image: alpine:3.20
+  variables:
+    GIT_STRATEGY: none
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $OBSERVABILITY != "on"'
+  allow_failure:
+    exit_codes: [3]
+  script:
+    - echo "PLANNED  [obs.version, obs.business]  this commit's telemetry - and the business metric - reached Application Insights"
+    - echo "Becomes real in Session 17, when OBSERVABILITY is on. Until then it proves nothing."
+    - exit 3
+
+verify:observability:               # OBS-001, OBS-002: this commit's requests - and the business metric - arrived
+  extends: [.obs, .prod-azure]
+  stage: verify
+  needs: [deploy:test, verify:perf]   # after the perf smoke: there is traffic to see
+  script:
+    - az extension add --name log-analytics --yes -o none 2>/dev/null || true
+    - |
+      LAW=$(az monitor log-analytics workspace list -g "$PROD_RG" --query "[0].customerId" -o tsv)
+      Q_REQ="AppRequests | where TimeGenerated > ago(30m) and AppVersion == '$CI_COMMIT_SHORT_SHA' | count"
+      Q_BIZ="AppMetrics | where TimeGenerated > ago(30m) and Name == '$OBS_BUSINESS_METRIC' | summarize n = sum(ItemCount)"
+      REQ=0; BIZ=0
+      for i in $(seq 1 20); do       # telemetry takes a few minutes to arrive - wait for it, up to ten
+        REQ=$(az monitor log-analytics query -w "$LAW" --analytics-query "$Q_REQ" --query "[0].Count" -o tsv 2>/dev/null || echo 0)
+        BIZ=$(az monitor log-analytics query -w "$LAW" --analytics-query "$Q_BIZ" --query "[0].n" -o tsv 2>/dev/null || echo 0)
+        REQ="${REQ%.*}"; REQ="${REQ:-0}"; BIZ="${BIZ%.*}"; BIZ="${BIZ:-0}"
+        echo "try $i: requests from $CI_COMMIT_SHORT_SHA = $REQ, $OBS_BUSINESS_METRIC = $BIZ"
+        [ "$REQ" -gt 0 ] 2>/dev/null && [ "$BIZ" -gt 0 ] 2>/dev/null && break
+        sleep 30
+      done
+      printf '{"version": "%s", "requests": %s, "business": %s}\n' "$CI_COMMIT_SHORT_SHA" "$REQ" "$BIZ" | tee obs.json
+  artifacts:
+    when: always
+    paths: [obs.json]
+
+drill:slow:                         # the drill: every request slower than the NFR - the p95 alert should fire
+  extends: [.obs-manual, .prod-azure]
+  stage: verify
+  needs: [deploy:test]
+  script:
+    - az containerapp update -n "$PROD_APP" -g "$PROD_RG" --set-env-vars DRILL_SLOW_MS=2500 -o none
+    - echo "Drill on - the next deploy:test clears it too (Terraform puts the declared settings back)."
+    - echo "Now run drill:load, watch the dashboard and your inbox. Then drill:clear."
+
+drill:load:                         # the drill's traffic: your k6 smoke, longer - long enough for a five-minute alert window
+  extends: .obs-manual
+  stage: verify
+  image:
+    name: grafana/k6:1.4.2
+    entrypoint: [""]
+  needs: [deploy:test]
+  script:
+    - k6 run --summary-export=drill-k6.json -e BASE_URL="$APP_URL" -e DURATION=8m -e VUS=5 -e TREASURER_KEY="$TREASURER_KEY" tests/perf/smoke.js || echo "Thresholds missed - during a drill, that is the point"
+  artifacts:
+    when: always
+    paths: [drill-k6.json]
+
+drill:errors:                       # the drill: a third of requests fail - the error alert should fire
+  extends: [.obs-manual, .prod-azure]
+  stage: verify
+  needs: [deploy:test]
+  script:
+    - az containerapp update -n "$PROD_APP" -g "$PROD_RG" --set-env-vars DRILL_ERROR_PCT=30 -o none
+
+drill:clear:
+  extends: [.obs-manual, .prod-azure]
+  stage: verify
+  needs: [deploy:test]
+  script:
+    - az containerapp update -n "$PROD_APP" -g "$PROD_RG" --remove-env-vars DRILL_SLOW_MS DRILL_ERROR_PCT -o none
+
+rollback:test:                      # the previous commit's image, back in service in one step
+  extends: [.prod-manual, .prod-azure]
+  stage: verify
+  needs: [deploy:registry, deploy:test]
+  variables:
+    GIT_DEPTH: "5"
+    ROLLBACK_TO: ""                 # leave empty: the commit before this one on main. Or run with a commit's short SHA
+  script:
+    - TAG="${ROLLBACK_TO:-$(git rev-parse HEAD~1 | cut -c1-8)}"
+    - |
+      az acr repository show-tags -n "$ACR_NAME" --repository "$APP_NAME" -o tsv | grep -qx "$TAG" \
+        || { echo "No image $APP_NAME:$TAG in $ACR_NAME - was that commit deployed? Run with ROLLBACK_TO=<short sha>"; exit 1; }
+    - az containerapp update -n "$PROD_APP" -g "$PROD_RG" --image "$ACR_SERVER/$APP_NAME:$TAG" --set-env-vars APP_VERSION="$TAG" -o none
+    - echo "Rolled back to $TAG. The next merge to main deploys forward again - fix it there."

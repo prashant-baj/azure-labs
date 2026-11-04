@@ -53,7 +53,7 @@ if [ -f "$ST" ]; then
   ROWS=$(grep -E '^\|[[:space:]]*CS-[0-9]{3}[[:space:]]*\|.*\|[[:space:]]*(merge|deploy)[[:space:]]*\|[[:space:]]*$' "$ST")
   NROWS=$(echo "$ROWS" | grep -c .)
   UNSET=$(echo "$ROWS" | awk -F'|' '{print $5}' | grep -cvE '^[[:space:]]*(>=|<=|=|<|>)[[:space:]]*[0-9.]+' || true)
-  BADM=$(echo "$ROWS" | awk -F'|' '{gsub(/ /,"",$4); print $4}' | grep -cvxE 'tests\.pass_rate|tests\.count|coverage\.line|api\.pass_rate|e2e\.pass_rate|perf\.p95_ms|perf\.error_rate|smoke\.version|planned\.[a-z0-9_]+' || true)
+  BADM=$(echo "$ROWS" | awk -F'|' '{gsub(/ /,"",$4); print $4}' | grep -cvxE 'tests\.pass_rate|tests\.count|coverage\.line|api\.pass_rate|e2e\.pass_rate|perf\.p95_ms|perf\.error_rate|smoke\.version|dast\.high|dast\.medium|obs\.version|obs\.business|planned\.[a-z0-9_]+' || true)
   if [ "$NROWS" -ge 5 ] && [ "$UNSET" -eq 0 ] && [ "$BADM" -eq 0 ]; then ok "$NROWS confidence thresholds, every one set"; STRAT_OK=yes
   elif [ "$NROWS" -eq 0 ]; then bad "No confidence thresholds (| CS-001 | ... | merge |) - the pipeline has nothing to decide on"
   else warn "$NROWS threshold row(s): $UNSET not set yet, $BADM with an unknown measure - /test-strategy, section 5"; fi

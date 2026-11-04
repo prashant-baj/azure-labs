@@ -160,9 +160,10 @@ against the deployed URL. *Operate → Environments → test* shows what is depl
 
 Confidence you never saw fail has not proved anything. On a **branch**, one at a time:
 
-- Delete a test → `CS-002` (*the suite only grows*) **missed**.
-- Make a health check return a fixed version → after merge, `CS-005` **missed** — the pipeline caught a stale deploy.
-- Add a slow path to the request your NFR is about (for example a short sleep) → run k6 locally: `CS-007`.
+- **In the pipeline:** on a branch, delete one test and push. `confidence:merge` says `CS-002` (*the suite only
+  grows*) **MISSED** — the merge request shows NOT CONFIDENT.
+- **On your laptop:** add a slow path to the request your NFR is about (a short sleep), run the app and k6 with your
+  thresholds — `p(95)` crosses the line, k6 fails its threshold, and `CS-007` would be MISSED.
 
 Read `confidence.md`, run `/analyse-failure`, revert. Never merge the broken change.
 

@@ -74,7 +74,7 @@ if (Test-Path $st) {
   else { Warn "No 'Not automated yet, and why' - an honest gap beats a pretty pyramid" }
   $rows = @($stLines | Where-Object { $_ -match '^\|\s*CS-\d{3}\s*\|.*\|\s*(merge|deploy)\s*\|\s*$' })
   $nrows = $rows.Count
-  $known = '^(tests\.pass_rate|tests\.count|coverage\.line|api\.pass_rate|e2e\.pass_rate|perf\.p95_ms|perf\.error_rate|smoke\.version|planned\.[a-z0-9_]+)$'
+  $known = '^(tests\.pass_rate|tests\.count|coverage\.line|api\.pass_rate|e2e\.pass_rate|perf\.p95_ms|perf\.error_rate|smoke\.version|dast\.high|dast\.medium|obs\.version|obs\.business|planned\.[a-z0-9_]+)$'
   $unset = 0; $badm = 0
   foreach ($r in $rows) {
     $c = $r -split '\|'
