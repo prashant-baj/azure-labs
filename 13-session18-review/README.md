@@ -5,13 +5,15 @@ expose and watched. Layer 7 asks the question a client asks before signing a go-
 
 > **"Would you put your name on it — and can someone else run it?"**
 
-Today a **review board** — two other groups and the facilitator — reviews your build against a **readiness
-checklist** of production and operations readiness. The facilitator speaks as your client's people. What the board
-finds and what the client says become decisions, spec changes and fixes.
+Today starts with an hour of **self-review** against a **readiness checklist** of production and operations
+readiness. Then the whole class becomes the **review board**: while one group presents, the other four each play a
+**stakeholder role** — security officer, operations lead, enterprise architect, QA and release manager — rotating
+every slot. The facilitator chairs and speaks as your client's people. What the board finds and what the client says
+become decisions today, and fixes in the next session.
 
 | | Session 18 · Wed 11 Nov |
 |---|---|
-| **You build** | A readiness checklist with evidence (production + operations + your case), a runbook, the board's findings and the client's feedback — decided — and the top one or two fixed, test first |
+| **You build** | A readiness checklist with evidence (production + operations + your case), a runbook, the board's findings (one or more from every role) and the client's feedback — all decided. The fixes are next session |
 | **The review covers** | Architecture review · code review · security assessment · production readiness evaluation · operations readiness · customer feedback |
 | **Tag** | `L7-reviewed` |
 
@@ -25,14 +27,16 @@ our client said, and what we fixed."* See [`../BUILD-ROADMAP.md`](../BUILD-ROADM
 | # | Do | Who | Time |
 |---|---|---|---|
 | 0 | `git pull` azure-labs. `L6-production` tagged. Last `main` pipeline deployed; if the lab was reset, re-run it and `drill:load` | everyone | before |
+| | **Part A — self-review** | | **60 min** |
 | 1 | **Set up**: `setup-review` — the checklist (with your case's lines), runbook, findings and feedback files | driver + Maintainer | 5 min |
-| 2 | **Check yourselves**: pair A `/readiness-check` (production), pair B `/runbook` + operations | two pairs | 20 min |
-| 3 | **The brief**: `/board-brief` — three minutes, your own gaps first | whole group | 5 min |
-| 4 | **The board**: present once, sit on two boards; the client speaks ([`board/rotation.md`](board/rotation.md), [`board/rubric.md`](board/rubric.md)) | everyone | 40 min |
+| 2 | **Check yourselves**: pair A `/readiness-check` (production), pair B `/runbook` + operations | two pairs | 35 min |
+| 3 | **Challenge each other**, then `/board-brief`; pick a presenter, a driver and a scribe; look up your four roles | whole group | 20 min |
+| | **Part B — the board, the whole class** | | **60 min** |
+| 4 | **The board**: 12 minutes a group — present once, play every stakeholder role once ([`board/rotation.md`](board/rotation.md), [`board/roles.md`](board/roles.md)) | everyone | 60 min |
 | 5 | **Triage**: `/triage-review` — a decision for every finding and every piece of feedback | whole group | 10 min |
-| 6 | **Fix the top one or two**: spec first, `test_rev_0nn_…` red, then the fix | two pairs | 20 min |
-| 7 | `check-review` READY → tag `L7-reviewed` | Maintainer | 5 min |
-| 8 | **Debrief** — what did a board see that you could not? | everyone | 10 min |
+| 6 | **Debrief** — what did a stakeholder see that you could not? | everyone | 10 min |
+| | **Next session** | | |
+| 7 | **Fix the `fix now` findings**: spec first, `test_rev_0nn_…` red, then the fix; `check-review` READY → tag `L7-reviewed` | two pairs | |
 
 **Two repositories, as before:** this lab (azure-labs) is pull-only. Your case repo (GitLab) is where you push.
 
@@ -46,8 +50,9 @@ our client said, and what we fixed."* See [`../BUILD-ROADMAP.md`](../BUILD-ROADM
 | `templates/case-lines/` | Two case lines per case (A–E), added by setup |
 | `templates/runbook.md`, `findings.md`, `feedback.md` | The other three documents |
 | `board/rubric.md` | Eight areas scored 0–3, how to write a finding, the verdict |
-| `board/scorecard.md` | One per review — the board fills it in and hands it over |
-| `board/rotation.md` | Who reviews whom, in what order |
+| `board/roles.md` | The four stakeholder roles — the lines each owns, five questions each, typical findings |
+| `board/scorecard.md` | The role card — one per role, per slot: scores for the lines it owns, one or two findings |
+| `board/rotation.md` | The order, and which group plays which role in each slot |
 | `claude-commands/` | `/readiness-check`, `/runbook`, `/board-brief`, `/triage-review` |
 | `examples/society-dues/` | The worked example — read its README first |
 

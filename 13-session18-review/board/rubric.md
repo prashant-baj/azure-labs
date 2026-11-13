@@ -5,14 +5,16 @@ effort, not slides and not promises. The reviewed group's `specs/design/readines
 
 ## How the board works
 
-- **Two groups and the facilitator** review one group (rotation: `board/rotation.md`).
-- The reviewed group has **three minutes**: the slice running, the business number on the dashboard, the last
-  deploy scorecard, and their own top gaps from the readiness checklist.
-- The board has **two minutes of questions**. Ask for evidence, not explanations: *"Show me the test."* *"Open the
-  alert rule."* *"Where is that in the runbook?"*
-- The facilitator then speaks **as the client's people** for two minutes — customer feedback, in their words.
-- The board fills in `board/scorecard.md` and hands it over **within three minutes**. The reviewed group copies the
-  findings into `specs/review/findings.md`.
+- **The whole class is the board.** While one group presents, each of the other four groups plays **one stakeholder
+  role** — security officer, operations lead, enterprise architect, QA and release manager — and reviews only from
+  that seat. The roles rotate every slot (`board/rotation.md`); what each looks for is in `board/roles.md`.
+- The presenting group has **four minutes**: the slice running, the business number on the dashboard, the last
+  deploy scorecard, and its own top gaps from the readiness checklist.
+- Each role has **about 75 seconds of questions**. Ask for evidence, not explanations: *"Show me the test."*
+  *"Open the alert rule."* *"Where is that in the runbook?"*
+- The facilitator chairs, and speaks **as the client's people** for two minutes — customer feedback, in their words.
+- In the last minute each role **reads out one or two findings**; the presenting group's scribe types them into
+  `specs/review/findings.md` with the role in *Raised by*. The chair gives the verdict in one sentence.
 
 ## Scoring — eight areas, 0 to 3 each
 
@@ -32,7 +34,7 @@ effort, not slides and not promises. The reviewed group's `specs/design/readines
 | Release and recovery | PR-12, PR-14, OR-05 | Built once; rollback tried; a restore tried — or an honest, owned gap |
 | Observability | PR-15–17 | Both numbers read aloud from the dashboard; the drill fired an alert; one request found by id |
 | Operations readiness | OR-01–04, OR-06–12 | Someone outside the group deployed and rolled back from the runbook; owner, on-call, SLO and incident path agreed |
-| Customer value | Case lines, feedback | The business signal is the number the client cares about; feedback is triaged, not promised |
+| Customer value | Case lines, feedback | The business signal is the number the client cares about; feedback is triaged, not promised — scored by the chair, as the client |
 
 ## Writing a finding
 
@@ -52,4 +54,5 @@ improvement.
 | **Go with conditions** | High findings each have a decision and an owner, and none would harm the client on day one |
 | **Not yet** | A high finding with no decision, or a line the board was told is `met` that it could not see |
 
-*A board that finds nothing has not looked. Every board writes at least three findings and one thing done well.*
+*A role that finds nothing has not looked. Every role writes at least one finding and one thing done well — so every
+group leaves with at least four findings, one from each seat.*

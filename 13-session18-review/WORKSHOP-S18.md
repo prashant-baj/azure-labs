@@ -1,26 +1,37 @@
 # Session 18 workshop — the Engineering Excellence Review Board
 
+**Today has two halves.** The first hour is yours: check your own build against the readiness checklist. The
+second hour, the whole class is the **Engineering Excellence Review Board**: each group presents once, and while it
+does, the other four groups each play one **stakeholder role** — security officer, operations lead, enterprise
+architect, QA and release manager. The facilitator chairs and speaks as the client. **The fixes are the next
+session.**
+
 **By the end of today your group has:**
 
 1. **A readiness checklist with evidence** — production readiness (17 lines) and operations readiness (12 lines),
    plus two lines from your case. Every `met` names its evidence; every gap is owned.
 2. **A runbook someone else can use** — deploy, roll back, rotate a secret, and what to do for each alert.
-3. **A review by a board** — two other groups and the facilitator score you against the rubric, write at least
-   three findings, and give a verdict. The facilitator speaks as your client's people.
-4. **Every finding and every piece of feedback decided** — fix now, spec change, backlog, accepted or declined.
-5. **The top one or two findings fixed** — spec first, a test named after the finding, then the fix. Tag
-   `L7-reviewed`.
+3. **A review by the board** — at least one finding from each of the four stakeholder roles, the client's feedback,
+   and the chair's verdict — all written into your findings and feedback files.
+4. **Every finding and every piece of feedback decided** — fix now (next session), spec change, backlog, accepted or
+   declined.
+
+**Next session:** the `fix now` findings fixed — spec first, a test named after the finding, then the fix — and the
+tag `L7-reviewed`.
 
 | # | Step | Who | Time |
 |---|---|---|---|
+| | **Part A — self-review** | | **60 min** |
 | 1 | Set up | driver + Maintainer | 5 min |
-| 2 | Check yourselves — the checklist and the runbook | two pairs | 20 min |
-| 3 | Prepare the brief | whole group | 5 min |
-| 4 | The board — present once, review twice | everyone | 40 min |
+| 2 | Check yourselves — the checklist and the runbook | two pairs | 35 min |
+| 3 | Challenge each other, then prepare the brief | whole group | 20 min |
+| | **Part B — the board, the whole class** | | **60 min** |
+| 4 | The board — present once, play four stakeholder roles | everyone | 60 min |
 | 5 | Triage — a decision for every finding and every piece of feedback | whole group | 10 min |
-| 6 | Fix the top one or two | two pairs | 20 min |
-| 7 | Check and tag | Maintainer | 5 min |
 | | Debrief | everyone | 10 min |
+| | **Next session** | | |
+| 6 | Fix the `fix now` findings | two pairs | |
+| 7 | Check and tag `L7-reviewed` | Maintainer | |
 
 Commands below are for macOS / Linux / WSL. **PowerShell** lines are given where they differ. `~/work/group-1` is
 your case repo, `<lab>` is this folder.
@@ -56,7 +67,7 @@ Read `<lab>/board/rubric.md` now — two minutes. It is how you will be scored, 
 
 ---
 
-## Step 2 · Check yourselves (20 min, two pairs)
+## Step 2 · Check yourselves (35 min, two pairs)
 
 | Pair | Does | Command |
 |---|---|---|
@@ -79,38 +90,58 @@ evidence; the runbook's _(fill in)_ count is going down.
 
 ---
 
-## Step 3 · Prepare the brief (5 min)
+## Step 3 · Challenge each other, then prepare the brief (20 min)
+
+**10 minutes — swap and challenge.** Pair A reads pair B's operations lines and runbook; pair B reads pair A's
+production lines. Play the board before the board does: for every `met`, open the evidence. Could a stranger see it?
+For every `gap`, is there a finding? Use the questions in `<lab>/board/roles.md` on yourselves.
+
+**10 minutes — the brief.**
 
 ```
 /board-brief
 ```
 
-Three minutes, no slides, in this order: what the slice does in the client's words · show it running (one live
-request) · the business number and the technical number, from the dashboard · the last deploy scorecard · **your own
-top three gaps**. Decide who presents and who drives the screen. Push your branch so the board can see the files.
+Four minutes on the board, no slides, in this order: what the slice does in the client's words · show it running (one
+live request) · the business number and the technical number, from the dashboard · the last deploy scorecard · **your
+own top three gaps**. Decide who presents, who drives the screen, and who is the **scribe** — the person who types
+every finding into `specs/review/findings.md` as it is read out. Push your branch so the board can see the files.
+
+Also look up **your four roles** for the board in `<lab>/board/rotation.md` — your group's column — and read each
+role in `roles.md`. You will play all four, one per slot.
 
 ---
 
-## Step 4 · The board (40 min)
+## Step 4 · The board — the whole class (60 min)
 
-Order and boards: `<lab>/board/rotation.md`. Seven minutes per slot:
+The whole class is the board. While one group presents, each of the other four groups plays one stakeholder role,
+and the roles rotate each slot — so over the hour every group presents once and plays every role once:
+
+| Slot | Presenting | Security officer | Operations lead | Enterprise architect | QA and release manager |
+|---|---|---|---|---|---|
+| 1 | Group 1 · Nova Retail | Group 2 | Group 3 | Group 4 | Group 5 |
+| 2 | Group 2 · Sterling National Bank | Group 3 | Group 4 | Group 5 | Group 1 |
+| 3 | Group 3 · PureFoods Global | Group 4 | Group 5 | Group 1 | Group 2 |
+| 4 | Group 4 · Apex Industrial | Group 5 | Group 1 | Group 2 | Group 3 |
+| 5 | Group 5 · EcoNova Enterprises | Group 1 | Group 2 | Group 3 | Group 4 |
+
+Twelve minutes per slot:
 
 | Minutes | What happens |
 |---|---|
-| 3 | **The reviewed group shows**: the brief from step 3, on screen |
-| 2 | **The board asks** — for evidence, not explanations: "Show me the test." "Open the alert rule." "Where is that in the runbook?" "Who agreed to that risk?" |
-| 2 | **The client speaks** — the facilitator, in the voice of your case's people. Write down what they say, in their words |
-| (3) | **The board writes** its scorecard (`board/scorecard.md`) while the next slot starts, and hands it over |
+| 4 | **The presenting group shows** — the brief from step 3, on screen, `readiness.md` open |
+| 5 | **The four roles ask**, about 75 seconds each — security, operations, architecture, QA and release. For evidence, not explanations: "Show me the test." "Roll it back from section 3 of your runbook." |
+| 2 | **The client speaks** — the facilitator, in the voice of the case's people |
+| 1 | **Each role reads out one or two findings** in the finding format; the presenting group's scribe types them into `specs/review/findings.md` with the role in *Raised by*. The chair gives the verdict in one sentence |
 
-**As a board** (twice): score the eight areas 0–3, write **at least three findings** and one thing done well, give a
-verdict — Go, Go with conditions, Not yet. A finding is what you saw, the evidence, the risk and what to do — never
-who did it. Ask one member of your board to try the reviewed group's runbook: "roll back, using only section 3"
-(their OR-12).
+**When you play a role:** stay in your seat — `board/roles.md` lists the checklist lines each role owns and five
+questions to pick from. Fill a role card (`board/scorecard.md`) while the group presents: score the lines you own,
+write one or two findings, and one thing done well. A finding is what you saw, the evidence, the risk and the smallest
+next step — never who did it.
 
-**When you are reviewed:** one person presents, one drives, everyone else writes down every question. A question you
-could not answer is a finding, even if the board does not write it. Afterwards, copy the board's findings into
-`specs/review/findings.md` and the client's words into `specs/review/feedback.md`, and the verdict into section 4 of
-the checklist.
+**When you present:** one person presents, one drives, the scribe types. Do not argue with a finding in the slot —
+write it down; you decide it in step 5. Afterwards, also write the client's words into `specs/review/feedback.md` and
+the chair's verdict into section 4 of the checklist.
 
 **Customer feedback — the one rule:** never say yes to a new request in the room. Say *"Let me check what that would
 take, and I will come back to you by Friday."* Then decide it in step 5.
@@ -127,7 +158,7 @@ Every finding and every piece of feedback gets a decision:
 
 | Decision | When |
 |---|---|
-| `fix now` | It fits in 20 minutes, test first. **At most two.** High severity first, then what the client feels most |
+| `fix now` | Fixed first thing next session, test first. Every `high` finding is `fix now` or `spec change` unless the client's side accepts it. Rank them: high first, then what the client feels most |
 | `spec change` | The spec, the strategy or an ADR was wrong or silent — it changes **first**, in the same merge request as any code |
 | `backlog` | Sessions 19–20, with an owner |
 | `accepted` / `declined` | With who agreed — a **high** finding is accepted only by the client's side — or the reason given to the person who asked |
@@ -139,7 +170,7 @@ Feedback also gets a type: `defect` (the slice does not do what the spec says �
 
 ---
 
-## Step 6 · Fix the top one or two (20 min, two pairs)
+## Step 6 · Next session — fix the `fix now` findings (two pairs)
 
 For each `fix now`, on its own branch `review/rev-0nn`:
 
@@ -153,7 +184,7 @@ A finding about the runbook or the checklist is fixed in the document — still 
 
 ---
 
-## Step 7 · Check and tag (5 min)
+## Step 7 · Next session — check and tag
 
 ```bash
 cd <lab> && ./check-review.sh ~/work/group-1
@@ -165,18 +196,23 @@ Tag only when the READY bar says so. Findings still `open` are fine — as long 
 
 ---
 
-## Done looks like
+## Done looks like — today
 
 - [ ] `specs/design/readiness.md`: 31 lines, each with a status; every `met` with evidence; every gap owned
-- [ ] `ops/runbook.md`: no _(fill in)_ left; someone outside the group rolled back from it
-- [ ] The board's scorecard copied: at least three findings, each with a severity and a decision; the verdict in section 4
+- [ ] `ops/runbook.md`: no _(fill in)_ left; a board member tried to roll back from it
+- [ ] `specs/review/findings.md`: at least one finding from each of the four roles, each with a severity, a decision and *Raised by*; the chair's verdict in section 4 of the checklist
 - [ ] The client's feedback in their words, each with a type and a decision — nothing promised in the room
-- [ ] One or two findings `done`, each with a test named after it, spec first
+- [ ] Your group played all four roles, and handed over a role card each time
+
+## Done looks like — next session
+
+- [ ] Every `fix now` finding `done`, each with a test named after it, spec first
 - [ ] `check-review` READY · tag `L7-reviewed` pushed
 
 ## In Sessions 19 and 20
 
-The integrated demo. The board's conditions and your `backlog` findings are the first things you show were done.
+Next session starts with the fixes (steps 6 and 7), then the integrated demo. The board's conditions and your
+`backlog` findings are the first things you show were done.
 Keep the readiness checklist current: it is what the final presentation's review will open first.
 
 ## If something goes wrong
@@ -186,7 +222,9 @@ Keep the readiness checklist current: it is what the final presentation's review
 | `check-review`: *Evidence that is not in the repo* | A typo in the path, or the file is on another branch — merge it, or correct the path |
 | The checklist has no case lines | Setup could not tell your case from the repo name — copy yours from `<lab>/templates/case-lines/` into section 3 |
 | The dashboard is empty for the board | A lab reset. Re-run the last `main` pipeline and `drill:load`; show the drill table and the job logs meanwhile |
-| The board ran out of time | The scorecard can be finished in step 5 — but within the session, while the questions are fresh |
+| The board ran out of time | The chair cuts questions, never the findings minute. A role that did not get to ask still reads out its finding |
+| Your role found nothing to ask | Pick a question from `board/roles.md` and ask it anyway — the answer is often the finding |
+| The scribe could not keep up | Each role hands its role card over after the slot; type the rest from the cards in step 5 |
 | A finding you disagree with | Write it down anyway, then decide it: `accepted` with a reason, or ask the board for the evidence. Arguing in the slot costs the next group its time |
-| `fix now` is turning into an afternoon | Stop. Make it `backlog` with an owner and pick a smaller one. Two small, finished fixes beat one large, unfinished one |
+| Next session: `fix now` is turning into an afternoon | Stop. Make it `backlog` with an owner and pick the next one. Small, finished fixes beat one large, unfinished one |
 | `check-review`: *No test named after a finding* | Name it `test_rev_0nn_…` (or `REV-0nn` in a Java `@DisplayName`). Runbook-only fixes still need one finding fixed in code or a test elsewhere |

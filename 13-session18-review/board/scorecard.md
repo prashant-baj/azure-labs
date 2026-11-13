@@ -1,35 +1,25 @@
-# Board scorecard
+# Role card — one per role, per slot
 
-*One per review. The board fills it in and hands it to the reviewed group within three minutes. Rubric:
-`board/rubric.md`.*
+*Your group fills this in while the presenting group shows, and reads the findings out in the slot's last minute.
+The presenting group's scribe types them into its `specs/review/findings.md`. Roles: `board/roles.md`.*
 
-**Reviewed group:** ______  **Board:** Group ___ and Group ___ and the facilitator  **Time:** ______
+**Presenting group:** ______  **Our group:** ______  **Our role this slot:** Security officer · Operations lead ·
+Enterprise architect · QA and release manager
 
-## Scores (0 not there · 1 claimed · 2 evidenced · 3 proved)
+## Scores for the lines our role owns (0 not there · 1 claimed · 2 evidenced · 3 proved)
 
-| Area | Score | The evidence you saw — or did not |
+| Checklist lines | Score | The evidence we saw — or did not |
 |---|---|---|
-| Architecture and decisions | | |
-| Code quality | | |
-| Testing and confidence | | |
-| Security | | |
-| Release and recovery | | |
-| Observability | | |
-| Operations readiness | | |
-| Customer value | | |
+| | | |
+| | | |
 
-## Findings — at least three
+## Our findings — one or two
 
-| # | Severity | Checklist line | What you saw, the evidence, the risk, what to do |
+| # | Severity | Checklist line | What we saw · the evidence · the risk · the smallest next step |
 |---|---|---|---|
 | 1 | | | |
 | 2 | | | |
-| 3 | | | |
 
-## One thing done well
+## One thing done well, from our seat
 
 ______
-
-## Verdict
-
-**Go · Go with conditions · Not yet** — and why, in one sentence: ______
